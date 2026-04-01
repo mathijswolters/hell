@@ -1,0 +1,24 @@
+{
+  "rewrites": [
+    {
+      "source": "/jackpot/:path*",
+      "destination": "http://116.202.242.165:2052/jackpot/:path*"
+    },
+    {
+      "source": "/inventory/:path*",
+      "destination": "http://116.202.242.165:2052/inventory/:path*"
+    },
+    {
+      "source": "/stats/:path*",
+      "destination": "http://116.202.242.165:2052/stats/:path*"
+    },
+    {
+      "source": "/user/:path*",
+      "destination": "http://116.202.242.165:2052/user/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
