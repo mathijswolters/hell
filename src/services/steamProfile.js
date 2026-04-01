@@ -1,10 +1,8 @@
 /**
  * Steam profile via ISteamUser/GetPlayerSummaries (Steam Web API).
- * Dev: use Vite proxy `/steam-api` → api.steampowered.com (avoids CORS).
- * Prod: set VITE_STEAM_PROFILE_URL to a same-origin backend that proxies Steam,
- * or configure your host to proxy `/steam-api` — direct browser calls to
- * api.steampowered.com often fail CORS; exposing VITE_STEAM_WEB_API_KEY in the
- * client bundle is also discouraged for production.
+ * Same-origin `/steam-api` — Vite proxy (dev) or `vercel.json` rewrite →
+ * api.steampowered.com (avoids CORS). Override with `VITE_STEAM_PROFILE_URL` if
+ * you host without that proxy.
  */
 
 function normalizeFromSteamPayload(data) {
@@ -47,9 +45,8 @@ export async function fetchSteamPlayerSummary(steamid) {
 
   const qs = new URLSearchParams({ key, steamids: steamid })
   const path = `/ISteamUser/GetPlayerSummaries/v0002/?${qs.toString()}`
-  const url = import.meta.env.DEV
-    ? `/steam-api${path}`
-    : `https://api.steampowered.com${path}`
+  // Same-origin `/steam-api` — Vite proxy (dev) or `vercel.json` → api.steampowered.com (avoids CORS in prod).
+  const url = `/steam-api${path}`
 
   const res = await fetch(url)
   if (!res.ok) return null
