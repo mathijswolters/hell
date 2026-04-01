@@ -1,20 +1,28 @@
 {
   "rewrites": [
     {
-      "source": "/jackpot/:path*",
-      "destination": "http://116.202.242.165:2052/jackpot/:path*"
+      "source": "/jackpot/(getRound|getHistory|getLuckiest|getDetails|getLastHistory|deposit)",
+      "destination": "http://116.202.242.165:2052/jackpot/$1"
     },
     {
-      "source": "/inventory/:path*",
-      "destination": "http://116.202.242.165:2052/inventory/:path*"
+      "source": "/inventory/load",
+      "destination": "http://116.202.242.165:2052/inventory/load"
     },
     {
-      "source": "/stats/:path*",
-      "destination": "http://116.202.242.165:2052/stats/:path*"
+      "source": "/stats/(getGraph|getGameHistory)",
+      "destination": "http://116.202.242.165:2052/stats/$1"
     },
     {
-      "source": "/user/:path*",
-      "destination": "http://116.202.242.165:2052/user/:path*"
+      "source": "/user/(updateTradeURL|getTransactions)",
+      "destination": "http://116.202.242.165:2052/user/$1"
+    },
+    {
+      "source": "/socket.io",
+      "destination": "http://116.202.242.165:2082/socket.io"
+    },
+    {
+      "source": "/socket.io/:path*",
+      "destination": "http://116.202.242.165:2082/socket.io/:path*"
     },
     {
       "source": "/(.*)",

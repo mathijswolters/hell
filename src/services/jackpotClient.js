@@ -13,14 +13,21 @@ export const SOCKET_SERVER_ORIGIN = 'http://116.202.242.165:2082'
 export const BACKEND_ORIGIN = SOCKET_SERVER_ORIGIN
 
 /**
- * Where `io()` connects: `VITE_SOCKET_URL` if set; dev → same-origin (Vite proxies `/socket.io` → :2082); prod → SOCKET_SERVER_ORIGIN.
+ * Where `io()` connects:
+ * - Default: same-origin `/socket.io` — Vite proxy (dev) or `vercel.json` rewrite → :2082 (avoids HTTPS→HTTP mixed content).
+ * - Override: `VITE_SOCKET_URL` (e.g. `wss://…`) for a direct socket host.
  */
 const SOCKET_URL = (() => {
   const env = import.meta.env.VITE_SOCKET_URL
   if (env !== undefined && String(env).trim() !== '') return String(env).replace(/\/$/, '')
-  if (import.meta.env.DEV) return ''
-  return SOCKET_SERVER_ORIGIN
+  return ''
 })()
+
+/** Vercel rewrites proxy polling well; WS upgrade through edge is unreliable — prefer polling when using same-origin socket in prod. */
+const SOCKET_FORCE_POLLING =
+  import.meta.env.DEV ||
+  import.meta.env.VITE_SOCKET_FORCE_POLLING === 'true' ||
+  (import.meta.env.PROD && !(import.meta.env.VITE_SOCKET_URL || '').trim())
 
 /**
  * Engine.IO pathname on that server (Socket.IO default). Only use a different value if the API mounts Socket.IO elsewhere (e.g. `/ws`).
@@ -32,13 +39,12 @@ export function isSocketEnabled() {
 }
 
 export function getSocketDebugInfo() {
-  const forcePolling = import.meta.env.DEV || import.meta.env.VITE_SOCKET_FORCE_POLLING === 'true'
   return {
     enabled: isSocketEnabled(),
     socketServerUrl: SOCKET_SERVER_ORIGIN,
     ioUrl: SOCKET_URL || `(same origin → proxy ${SOCKET_SERVER_ORIGIN})`,
     enginePath: SOCKET_PATH,
-    transports: forcePolling ? ['polling'] : ['websocket', 'polling']
+    transports: SOCKET_FORCE_POLLING ? ['polling'] : ['websocket', 'polling']
   }
 }
 
@@ -202,14 +208,13 @@ export function createJackpotSocket() {
   if (!isSocketEnabled()) return null
 
   const target = SOCKET_URL || undefined
-  const forcePolling = import.meta.env.DEV || import.meta.env.VITE_SOCKET_FORCE_POLLING === 'true'
   const token = getAuthToken()
   const handshakeAuth = token ? { token } : {}
 
   return io(target, {
     path: SOCKET_PATH,
-    transports: forcePolling ? ['polling'] : ['websocket', 'polling'],
-    upgrade: !forcePolling,
+    transports: SOCKET_FORCE_POLLING ? ['polling'] : ['websocket', 'polling'],
+    upgrade: !SOCKET_FORCE_POLLING,
     reconnection: true,
     reconnectionAttempts: 8,
     reconnectionDelay: 1000,
