@@ -17,8 +17,12 @@
       "destination": "http://116.202.242.165:2052/user/$1"
     },
     {
-      "source": "^/socket\\.io($|/.*)$",
-      "destination": "http://116.202.242.165:2082/socket.io$1"
+      "source": "/socket.io",
+      "destination": "http://116.202.242.165:2082/socket.io"
+    },
+    {
+      "source": "/socket.io/:path*",
+      "destination": "http://116.202.242.165:2082/socket.io/:path*"
     },
     {
       "source": "/(.*)",

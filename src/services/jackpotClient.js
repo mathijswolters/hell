@@ -280,7 +280,6 @@ export function createJackpotSocket() {
 
   const target = SOCKET_URL || undefined
   const token = getAuthToken()
-  const handshakeAuth = token ? { token } : {}
 
   return io(target, {
     path: SOCKET_PATH,
@@ -291,7 +290,8 @@ export function createJackpotSocket() {
     reconnectionDelay: 1000,
     timeout: 20000,
     forceNew: true,
-    auth: handshakeAuth
+    // Omit `auth` when logged out — some servers reject `{}` with "server error".
+    ...(token ? { auth: { token } } : {})
   })
 }
 
