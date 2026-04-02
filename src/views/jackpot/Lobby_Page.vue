@@ -227,12 +227,19 @@
           'h-0 opacity-0': !showJackpotSpinnerRail
         }"
       >
-        <Spinner ref="spinner" :pot_value="pot_value" :case-content="game.players" />
+        <Spinner
+          ref="spinner"
+          :pot_value="pot_value"
+          :case-content="game.players"
+          :roll-avatars="rollAvatars"
+          :display-ticket="fairness.ticket"
+          @complete="onJackpotSpinComplete"
+        />
       </div>
 
       <!-- PLAYERS AND CONTROLS -->
       <div
-        class="w-full flex flex-col gap-y-3 pb-3 mb-5 bg-[linear-gradient(180deg,rgba(83,0,0,0.8)0%,rgba(46,1,1,0.8)100%)] border border-solid border-[rgba(83,0,0,1)] backdrop-blur-[200px]"
+        class="w-full flex flex-col gap-y-3 pb-3 mb-5 bg-[rgba(83,0,0,0.8)] border border-solid border-[rgba(83,0,0,1)] backdrop-blur-[200px]"
       >
         <!-- controls -->
         <div
@@ -322,9 +329,7 @@ export default {
   },
   data() {
     return {
-      /** Seconds remaining until `serverRoundEndMs` (derived each tick from backend end time). */
       secondsLeft: 0,
-      /** Round window from backend (`jackpot:startTimer` or REST round). */
       serverRoundStartMs: null,
       serverRoundEndMs: null,
       /** Total round length in seconds (end − start), for the ring max. */
@@ -353,7 +358,11 @@ export default {
       /** Resolved winner for the current roll; spin starts when local timer hits 0 (spinner visible). */
       pendingSpinWinner: null,
       jackpotSpinDone: false,
-      intervalId: null
+      intervalId: null,
+      /** Keep spinner visible through backend reveal moment even if next startTimer arrives. */
+      spinVisibleUntilMs: null,
+      /** `serverNowMs - Date.now()` so countdowns match backend clock (not local clock skew). */
+      serverTimeOffsetMs: 0
     }
   },
   created() {},
@@ -367,20 +376,34 @@ export default {
       }
       return ids.size >= 2
     },
+    /**
+     * Betting countdown is off during spin reveal or after server `end` has passed.
+     * Do not use `game.status` here — `jackpot:startTimer` does not merge a new round object,
+     * so status would stay stale (e.g. `rolling`) and block the timer until a full page refresh.
+     */
+    isRoundEndingPhase() {
+      if (this.jackpotSpinDone) return true
+      if (this.serverRoundEndMs != null && this.nowMs() >= this.serverRoundEndMs) return true
+      return false
+    },
     /** Ring + label: no backend end time yet → empty ring. */
     displayTimerValue() {
       if (this.serverRoundEndMs == null) return 0
+      if (this.isRoundEndingPhase) return this.secondsLeft
       if (!this.hasAtLeastTwoDistinctSteamPlayers) return this.displayTimerMax
       return this.secondsLeft
     },
     displayTimerMax() {
-      return Math.max(1, this.timerTotalSeconds || 120)
+      return 120
     },
     /** Spinner rail only after backend round end time has passed (timer driven by server `end`). */
     showJackpotSpinnerRail() {
-      if (this.serverRoundEndMs == null) return false
       if (!this.hasAtLeastTwoDistinctSteamPlayers) return false
-      return Date.now() >= this.serverRoundEndMs
+      const now = this.nowMs()
+      const byEnd = this.serverRoundEndMs != null && now >= this.serverRoundEndMs
+      const byAnimation =
+        this.spinVisibleUntilMs != null && now <= this.spinVisibleUntilMs
+      return byEnd || byAnimation
     },
     pot_value() {
       if (this.latestTotalValue > 0) return this.latestTotalValue
@@ -404,6 +427,21 @@ export default {
     }
   },
   methods: {
+    /** Current time aligned to server clock when `server_time` / socket `send` has been applied. */
+    nowMs() {
+      return Date.now() + this.serverTimeOffsetMs
+    },
+    syncServerTimeFromTimestamp(serverTs) {
+      const ms = serverTimestampToMs(serverTs)
+      if (ms == null || ms <= 0) return
+      this.serverTimeOffsetMs = ms - Date.now()
+    },
+    syncServerTimeFromGame(g) {
+      if (!g || typeof g !== 'object') return
+      const st = g.server_time ?? g.serverTime
+      if (st == null || st === '' || st === 0) return
+      this.syncServerTimeFromTimestamp(st)
+    },
     updateScreenWidth() {
       this.screenWidth = window.innerWidth
     },
@@ -411,7 +449,11 @@ export default {
       this.isRolling = true
       if (this.$refs.spinner && this.game.players?.length) {
         this.jackpotSpinDone = true
-        this.$refs.spinner.demoSpin(this.game.players[0])
+        const expectedRevealMs =
+          this.serverRoundEndMs != null ? this.serverRoundEndMs + 5000 : this.nowMs() + 5000
+        const spinDurationMs = Math.max(5000, expectedRevealMs - this.nowMs() - 600)
+        this.spinVisibleUntilMs = expectedRevealMs
+        this.$refs.spinner.demoSpin(this.game.players[0], undefined, undefined, spinDurationMs)
       }
     },
     findWinnerByTicket(ticketRaw) {
@@ -425,14 +467,13 @@ export default {
       }
       return null
     },
-    /** Start the reel once the backend round end time has passed and we have a target (usually from `jackpot:roll`). */
-    tryStartJackpotSpin() {
+    /**
+     * Round ends after ~30s; backend sends `jackpot:roll` with winner, ticket, avatars.
+     * Spin + winner UI are driven only by that event (not by the local timer hitting 0).
+     */
+    startJackpotSpinFromRoll() {
       if (!this.hasAtLeastTwoDistinctSteamPlayers) return
       if (this.jackpotSpinDone) return
-      if (this.secondsLeft > 0) return
-      if (this.serverRoundEndMs != null && Date.now() < this.serverRoundEndMs) return
-      const players = Array.isArray(this.game.players) ? this.game.players : []
-      if (!players.length) return
 
       const target =
         this.pendingSpinWinner || this.findWinnerByTicket(this.fairness.ticket)
@@ -446,15 +487,56 @@ export default {
         String(this.fairness.ticket ?? '').replace(/[^\d.-]/g, ''),
         NaN
       )
+      const expectedRevealMs =
+        this.serverRoundEndMs != null ? this.serverRoundEndMs + 5000 : this.nowMs() + 5000
+      const spinDurationMs = Math.max(5000, expectedRevealMs - this.nowMs() - 600)
+      this.spinVisibleUntilMs = expectedRevealMs
       this.$nextTick(() => {
         this.$refs.spinner?.demoSpin(
           target,
           syncSeed || undefined,
-          Number.isFinite(winningTicket) ? winningTicket : undefined
+          Number.isFinite(winningTicket) ? winningTicket : undefined,
+          spinDurationMs
         )
       })
     },
-    async refreshRound({ includeHistory = false, includeLucky = false } = {}) {
+    async onJackpotSpinComplete() {
+      this.spinVisibleUntilMs = null
+
+      const winnerForResults =
+        this.pendingSpinWinner || this.findWinnerByTicket(this.fairness.ticket)
+      this.pendingSpinWinner = null
+
+      /** Snapshot ended round before refresh clears / replaces players (same payload shape as "CURRENT ENTRIES" click). */
+      if (winnerForResults && Array.isArray(this.game?.players) && this.game.players.length) {
+        this.openModal('jackpot results', {
+          jackpot: {
+            ...this.game,
+            players: [...this.game.players]
+          },
+          winner: winnerForResults,
+          pot_value: this.pot_value
+        })
+      }
+
+      // Stop round countdown; next round timing comes from `jackpot:startTimer` / REST when ready.
+      this.stopTimerTick()
+      this.serverRoundStartMs = null
+      this.serverRoundEndMs = null
+      this.secondsLeft = 0
+
+      const prevGameId = this.game?._id
+      try {
+        await this.refreshRound()
+      } finally {
+        const prevNum = toNumber(prevGameId, NaN)
+        const currNum = toNumber(this.game?._id, NaN)
+        if (Number.isFinite(prevNum) && Number.isFinite(currNum) && currNum === prevNum) {
+          this.game._id = currNum + 1
+        }
+      }
+    },
+    async refreshRound({ includeHistory = false, includeLucky = false, skipApplyTiming = false } = {}) {
       try {
         const round = await getRound({
           potid: this.potId,
@@ -465,8 +547,9 @@ export default {
           const prev = Array.isArray(this.game?.players) ? this.game.players : []
           round.players = mergeRoundPlayersPreservingItems(prev, round.players)
           this.game = round
+          this.syncServerTimeFromGame(round)
         }
-        this.applyRoundTiming()
+        if (!skipApplyTiming) this.applyRoundTiming()
       } catch (error) {
         console.error('Failed to fetch jackpot round:', error)
       }
@@ -476,13 +559,24 @@ export default {
       if (!g) return
       const start = g.start
       const end = g.end
-      if (start != null && end != null && serverTimestampToMs(end) && serverTimestampToMs(start)) {
+      const startMs = serverTimestampToMs(start)
+      const endMs = serverTimestampToMs(end)
+      if (startMs && endMs) {
         this.applyServerTimer(start, end)
-      } else {
-        this.clearServerTimer()
-        this.jackpotSpinDone = false
-        this.pendingSpinWinner = null
+        return
       }
+      // REST often sends 0/0 or omits timing while state is `not_started`; the socket may
+      // already have applied `jackpot:startTimer` — do not wipe that.
+      const roundCountdownStillLive =
+        this.serverRoundEndMs != null && this.nowMs() < this.serverRoundEndMs
+      const spinRevealInProgress =
+        this.spinVisibleUntilMs != null && this.nowMs() <= this.spinVisibleUntilMs
+      if (roundCountdownStillLive || spinRevealInProgress) {
+        return
+      }
+      this.clearServerTimer()
+      this.jackpotSpinDone = false
+      this.pendingSpinWinner = null
     },
     /** Backend `jackpot:startTimer` + REST round sync. */
     applyServerTimer(start, end) {
@@ -494,17 +588,21 @@ export default {
       this.serverRoundStartMs = startMs
       this.serverRoundEndMs = endMs
       this.timerTotalSeconds = Math.max(1, Math.ceil((endMs - startMs) / 1000))
+      // Round is closing (server state, past end time, or spin): do not run the countdown interval.
+      if (this.isRoundEndingPhase) {
+        this.stopTimerTick()
+        this.secondsLeft = Math.max(0, Math.ceil((endMs - this.nowMs()) / 1000))
+        return
+      }
       // If the pot doesn't have 2+ distinct steam IDs, do not run the timer/spin.
       if (!this.hasAtLeastTwoDistinctSteamPlayers) {
         this.stopTimerTick()
-        // Freeze timer at the full length (default UI shows 120) until backend condition is met again.
+        // Freeze timer at the full length until backend condition is met again.
         this.secondsLeft = this.timerTotalSeconds
         return
       }
-
-      this.secondsLeft = Math.max(0, Math.ceil((endMs - Date.now()) / 1000))
+      this.secondsLeft = Math.max(0, Math.ceil((endMs - this.nowMs()) / 1000))
       this.startTimerTick()
-      if (this.secondsLeft === 0) this.$nextTick(() => this.tryStartJackpotSpin())
     },
     clearServerTimer() {
       this.stopTimerTick()
@@ -514,21 +612,29 @@ export default {
       this.timerTotalSeconds = 120
     },
     timerTick() {
+      if (this.serverRoundEndMs == null) return
+      if (this.isRoundEndingPhase) {
+        this.stopTimerTick()
+        this.secondsLeft = Math.max(0, Math.ceil((this.serverRoundEndMs - this.nowMs()) / 1000))
+        return
+      }
       if (!this.hasAtLeastTwoDistinctSteamPlayers) {
         this.stopTimerTick()
         // Freeze timer at the full length until condition is met again.
         this.secondsLeft = this.timerTotalSeconds
         return
       }
-      if (this.serverRoundEndMs == null) return
-      const prev = this.secondsLeft
-      const left = Math.max(0, Math.ceil((this.serverRoundEndMs - Date.now()) / 1000))
+      const left = Math.max(0, Math.ceil((this.serverRoundEndMs - this.nowMs()) / 1000))
       this.secondsLeft = left
-      if (prev > 0 && left === 0) {
-        this.$nextTick(() => this.tryStartJackpotSpin())
-      }
     },
     startTimerTick() {
+      if (this.isRoundEndingPhase) {
+        this.stopTimerTick()
+        if (this.serverRoundEndMs != null) {
+          this.secondsLeft = Math.max(0, Math.ceil((this.serverRoundEndMs - this.nowMs()) / 1000))
+        }
+        return
+      }
       this.stopTimerTick()
       this.timerTick()
       this.intervalId = setInterval(() => this.timerTick(), 250)
@@ -632,6 +738,7 @@ export default {
             const prev = Array.isArray(this.game?.players) ? this.game.players : []
             round.players = mergeRoundPlayersPreservingItems(prev, round.players)
             this.game = round
+            this.syncServerTimeFromGame(round)
             this.applyRoundTiming()
           }
           if (Array.isArray(payload.history)) {
@@ -655,17 +762,12 @@ export default {
           this.latestTotalValue = v
           this.$store.commit('setJackpotNavTotal', v)
         },
-        onEOSBlock: ({ block, blockid }) => {
-          const id =
-            block && typeof block === 'object' && block.id != null
-              ? block.id
-              : block?.id ??
-                blockid ??
-                (typeof block === 'string' || typeof block === 'number' ? block : '')
-          this.fairness.eos = id ?? ''
+        onEOSBlock: (blockid) => {
+          this.fairness.eos = blockid ?? ''
         },
-        onStartTimer: ({ start, end } = {}) => {
+        onStartTimer: ({ start, end, send } = {}) => {
           if (start != null && end != null) {
+            if (send != null) this.syncServerTimeFromTimestamp(send)
             this.applyServerTimer(start, end)
           }
         },
@@ -706,11 +808,13 @@ export default {
 
           if (spinTarget && this.game.players?.length) {
             this.pendingSpinWinner = spinTarget
-            this.tryStartJackpotSpin()
+            this.startJackpotSpinFromRoll()
+          } else if (spinTarget) {
+            this.pendingSpinWinner = spinTarget
+            this.startJackpotSpinFromRoll()
           } else {
             this.demoOpen()
           }
-          await this.refreshRound()
         },
         onLastHistory: async (payload) => {
           const historyEntry = payload?.history ?? payload
@@ -782,6 +886,7 @@ export default {
         // If backend started the timer but we currently don't have 2+ distinct users,
         // keep the UI/timer paused until the pot grows.
         if (this.serverRoundEndMs == null) return
+        if (this.isRoundEndingPhase) return
         if (!this.hasAtLeastTwoDistinctSteamPlayers) {
           this.stopTimerTick()
           this.secondsLeft = this.timerTotalSeconds

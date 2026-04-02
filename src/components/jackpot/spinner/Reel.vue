@@ -13,7 +13,7 @@
               <div
                 class="w-[60px] h-[60px] rounded-sm bg-no-repeat bg-center bg-cover"
                 :style="{
-                  backgroundImage: `url(${item.avatar})`
+                  backgroundImage: `url(${item?.avatar ?? item?.image ?? item?.url ?? '/img/user/userImage.png'})`
                 }"
               ></div>
             </div>

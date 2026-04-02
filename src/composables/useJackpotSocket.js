@@ -34,10 +34,6 @@ export function useJackpotSocket({
       }
       const sid = getSteamId?.()
       console.log('socket is connected');
-      socket.emit('jackpot:startTimer', {potid: potId}, (response) => {
-        // console.log('=============start timer=============', response)
-      })
-
 
       socket.emit('jackpot:subscribe', payload, (response) => {
         onSubscribe?.(response)
@@ -62,14 +58,16 @@ export function useJackpotSocket({
     })
 
     socket.on('jackpot:startTimer', ({ start, end, send }) => {
+      console.log('=============startTimer=============', { start, end, send })
       onStartTimer?.({ start, end, send })
     })
 
-    socket.on('fairness:EOSBlock', ({ block, blockid }) => {
-      onEOSBlock?.({ block, blockid })
+    socket.on('fairness:EOSBlock', ({ blockid }) => {
+      onEOSBlock?.(blockid)
     })
 
     socket.on('jackpot:roll', (payload) => {
+      console.log('=============roll=============', payload);
       onRoll?.(payload)
     })
 

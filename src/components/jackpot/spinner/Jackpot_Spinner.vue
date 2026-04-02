@@ -38,7 +38,7 @@
         <div
           class="w-[50px] h-[50px] sm:w-[72px] sm:h-[72px] rounded-[4px] bg-no-repeat bg-center bg-cover"
           :style="{
-            backgroundImage: `url(${winner.avatar})`
+            backgroundImage: `url(${winner?.avatar ?? '/img/user/userImage.png'})`
           }"
         ></div>
 
@@ -64,7 +64,7 @@
               })
             }}%</span
           >
-          CHANCE | TICKET:89.688
+          CHANCE | TICKET:{{ displayTicket || '—' }}
         </span>
       </div>
     </div>
@@ -79,6 +79,15 @@ function toNum(v, fallback = 0) {
   const n = Number(v)
   return Number.isFinite(n) ? n : fallback
 }
+
+/** Matches Reel.vue: .reel-element width 60px + margin-right 10px */
+const REEL_ITEM_STRIDE_PX = 70
+/** Fixed strip index where the winner must land (center marker). */
+const WINNER_SLOT_INDEX = 60
+/** Tuned so translateX aligns the winning slot with the viewport center (was -2665 for index 60). */
+const REEL_ALIGN_OFFSET_PX = 1535
+/** Minimum CSS transition length so the strip feels substantial (~4–5s). */
+const MIN_SPIN_ANIM_MS = 5000
 
 export default {
   name: 'UnboxSpinner',
@@ -99,8 +108,9 @@ export default {
         4: []
       },
       unboxReelStyle: {
-        transform: 'translateX(2535px) translateY(0px)',
-        transition: 'none'
+        transform: 'translate3d(2535px, 0, 0)',
+        transition: 'none',
+        willChange: 'auto'
       },
       unboxFilterSearch: '',
       unboxFilterSort: 'highest',
@@ -115,11 +125,11 @@ export default {
       generalTimeDiff: 0,
       unboxCount: 1,
       winner: null,
-      /** When set, reel shuffle and end jitter use this PRNG so all clients match the same roll. */
-      spinRandFn: null
+      spinRandFn: null,
+      spinDurationMs: 15000
     }
   },
-  props: ['caseContent', 'pot_value'],
+  props: ['caseContent', 'pot_value', 'rollAvatars', 'displayTicket'],
   methods: {
     _makeSeededRandom(seedStr) {
       let h = 2166136261
@@ -140,12 +150,16 @@ export default {
       if (this.spinRandFn) return this.spinRandFn()
       return Math.random()
     },
-    demoSpin(itemsWon, syncSeed, winningTicket) {
+    demoSpin(itemsWon, syncSeed, winningTicket, spinDurationMs) {
       this.finsihed_spinning = false
       this.spinRandFn =
         syncSeed != null && String(syncSeed).length > 0
           ? this._makeSeededRandom(String(syncSeed))
           : null
+      this.spinDurationMs = Math.max(
+        MIN_SPIN_ANIM_MS,
+        typeof spinDurationMs === 'number' && spinDurationMs > 0 ? spinDurationMs : 15000
+      )
       const parsed = Number(String(winningTicket ?? '').replace(/[^\d.-]/g, ''))
       const outcome = Number.isFinite(parsed)
         ? parsed
@@ -156,6 +170,8 @@ export default {
           games.push({
             demo: true,
             outcome,
+            /** Server / lobby already resolved the winner; ticket↔range match can fail (scale, rounding). */
+            rollWinner: itemsWon && typeof itemsWon === 'object' ? itemsWon : null,
             updatedAt: new Date()
           })
         }
@@ -205,11 +221,18 @@ export default {
       return outcomeItem
     },
     unboxGetReelsPos() {
+      /** Do not track position while CSS transform is animating — RAF + Vue updates cause jank. */
+      if (this.unboxRunning) return
+
+      const reelRef = this.$refs['reel-1']
+      const spinnerEl = this.$refs['unbox-spinner']
+      if (!reelRef?.[0]?.$el || !spinnerEl) return
+
       const offset =
-        this.$refs['reel-1'][0].$el.getBoundingClientRect().left +
-        this.$refs['reel-1'][0].$el.getBoundingClientRect().width / 2 -
-        this.$refs['unbox-spinner'].getBoundingClientRect().width / 2 -
-        this.$refs['unbox-spinner'].getBoundingClientRect().left
+        reelRef[0].$el.getBoundingClientRect().left +
+        reelRef[0].$el.getBoundingClientRect().width / 2 -
+        spinnerEl.getBoundingClientRect().width / 2 -
+        spinnerEl.getBoundingClientRect().left
 
       const pos = Math.round(Math.abs(offset - 2535) / 70) + 20
 
@@ -219,14 +242,27 @@ export default {
 
       this.unboxReelsPosRepeater = requestAnimationFrame(this.unboxGetReelsPos)
     },
-    /** Entrants that can appear on the jackpot reel (need ticket range for outcome matching). */
     _jackpotSpinParticipants() {
       const raw = Array.isArray(this.caseContent) ? this.caseContent : []
-      return raw.filter(
+      const fromPot = raw.filter(
         (p) => p?.ticketRange && toNum(p.ticketRange.max) >= toNum(p.ticketRange.min)
       )
+      const extras = Array.isArray(this.rollAvatars) ? this.rollAvatars : []
+      const fromRoll = extras.map((a, i) => {
+        const avatar =
+          typeof a === 'string'
+            ? a
+            : a?.avatar ?? a?.image ?? a?.url ?? '/img/user/userImage.png'
+        const name = typeof a === 'object' && a ? a.name ?? a.username ?? '' : ''
+        return {
+          avatar,
+          name,
+          chance: toNum(typeof a === 'object' && a ? a.chance : 0, 0),
+          ticketRange: { min: -1 - i, max: -1 - i }
+        }
+      })
+      return fromPot.concat(fromRoll)
     },
-    /** One random entrant weighted by `chance` (%), else ticket span, else uniform. Uses _spinRandom (seeded when syncing). */
     _pickWeightedPlayer(players) {
       if (!players.length) return null
       const weights = players.map((p) => {
@@ -247,8 +283,20 @@ export default {
       }
       return players[players.length - 1]
     },
-    unboxAddReels() {
+    /** Ensure reel item has avatar URL for background-image */
+    _reelPlayerFromRoll(winner) {
+      if (!winner || typeof winner !== 'object') return null
+      const avatar =
+        winner.avatar ?? winner.image ?? winner.url ?? '/img/user/userImage.png'
+      return { ...winner, avatar }
+    },
+    /**
+     * Build horizontal strip: weighted filler avatars, then force roll winner at WINNER_SLOT_INDEX.
+     * Winner is driven by roll (avatar), not ticket math.
+     */
+    unboxAddReels(rollWinner) {
       this.unboxReels = { 1: [], 2: [], 3: [], 4: [] }
+      const stripLen = 112
       let pickList = this._jackpotSpinParticipants()
       if (!pickList.length) {
         pickList = [
@@ -259,12 +307,21 @@ export default {
           }
         ]
       }
+      const forced = this._reelPlayerFromRoll(rollWinner)
 
       for (const reel of Object.keys(this.unboxReels)) {
-        for (let i = 0; i < 112; i++) {
-          this.unboxReels[reel].push(this._pickWeightedPlayer(pickList))
+        for (let i = 0; i < stripLen; i++) {
+          if (i === WINNER_SLOT_INDEX && forced) {
+            this.unboxReels[reel].push(forced)
+          } else {
+            this.unboxReels[reel].push(this._pickWeightedPlayer(pickList))
+          }
         }
       }
+    },
+    /** Final translateX so WINNER_SLOT_INDEX lines up under the center chevrons */
+    _finalReelTranslateX() {
+      return -(WINNER_SLOT_INDEX * REEL_ITEM_STRIDE_PX) + REEL_ALIGN_OFFSET_PX
     }
   },
   watch: {
@@ -272,54 +329,61 @@ export default {
       deep: true,
       handler(data, dataOld) {
         if (this.unboxGames.length >= 1) {
-          /* Always rebuild from current caseContent — first spin used to skip this when dataOld was [], leaving the empty-state reel (one placeholder). */
-          this.unboxAddReels()
-          this.unboxGetReelsPos()
+          clearTimeout(this.unboxReelsSpinTimeout)
+          cancelAnimationFrame(this.unboxReelsPosRepeater)
+          this.unboxReelsPosRepeater = null
 
-          for (const [index, game] of this.unboxGames.entries()) {
+          for (const game of this.unboxGames) {
+            const byTicket = this.unboxGetOutcomeItem(game)
+            const resolved =
+              game.demo === true && game.rollWinner
+                ? game.rollWinner
+                : byTicket ?? game.rollWinner
+
+            this.winner = resolved
+            this.unboxAddReels(resolved)
+
+            const START_X = 2535
+            const finalX = this._finalReelTranslateX()
+            const duration = this.spinDurationMs
+
+            const timeEnding = new Date(game.updatedAt).getTime() + duration
+            let timeLeft =
+              timeEnding -
+              (Date.now() + (game.demo !== true ? this.generalTimeDiff : 0))
+            timeLeft = Math.max(0, timeLeft)
+            /** Minimum duration so the spin is visibly smooth; avoid ~0s transitions. */
+            const animMs = Math.max(MIN_SPIN_ANIM_MS, timeLeft, this.spinDurationMs)
+
             this.unboxReelStyle = {
-              transform: 'translateX(2535px) translateY(0px)',
-              transition: 'none'
+              transform: `translate3d(${START_X}px, 0, 0)`,
+              transition: 'none',
+              willChange: 'transform'
             }
 
-            this.unboxReels[index + 1][60] = this.unboxGetOutcomeItem(game)
-            this.winner = this.unboxReels[index + 1][60]
-            // Adjust the duration based on fastOpening
-            const duration = 15000
+            this.$nextTick(() => {
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  this.unboxReelStyle = {
+                    transform: `translate3d(${finalX}px, 0, 0)`,
+                    transition: `transform ${animMs / 1000}s cubic-bezier(0.22, 1, 0.36, 1)`,
+                    willChange: 'transform'
+                  }
 
-            setTimeout(() => {
-              const timeEnding = new Date(game.updatedAt).getTime() + duration
-              let timeLeft =
-                timeEnding -
-                (new Date().getTime() + (game.demo !== true ? this.generalTimeDiff : 0))
-              timeLeft = timeLeft > 0 ? timeLeft : 0
-
-              this.unboxReelStyle = {
-                transform:
-                  'translateX(-' +
-                  (2600.5 + (60 / 8) * Math.floor(this._spinRandom() * (7 - 1 + 1)) + 1) +
-                  'px) translateY(0px)',
-                transition: 'transform ' + timeLeft / 1000 + 's cubic-bezier(0.1, 0, 0.2, 1)'
-              }
-
-              this.unboxReelsSpinTimeout = setTimeout(() => {
-                this.unboxReelStyle = {
-                  transform: 'translateX(-2665px) translateY(0px)',
-                  transition: 'transform 0.25s cubic-bezier(0.1, 0, 0.2, 1)'
-                }
-
-                cancelAnimationFrame(this.unboxReelsPosRepeater)
-
-                setTimeout(() => {
-                  this.unboxRunning = false
-                  this.spinRandFn = null
-                  this.$emit('complete', game.demo)
-                }, 250)
-                setTimeout(() => {
-                  // this.finsihed_spinning = true
-                }, 2000)
-              }, timeLeft + 100)
-            }, 5)
+                  this.unboxReelsSpinTimeout = setTimeout(() => {
+                    this.unboxReelStyle = {
+                      transform: `translate3d(${finalX}px, 0, 0)`,
+                      transition: 'none',
+                      willChange: 'auto'
+                    }
+                    this.unboxReelsPos = WINNER_SLOT_INDEX
+                    this.unboxRunning = false
+                    this.spinRandFn = null
+                    this.$emit('complete', game.demo)
+                  }, animMs + 80)
+                })
+              })
+            })
           }
         }
       }
@@ -327,7 +391,7 @@ export default {
   },
 
   created() {
-    this.unboxAddReels()
+    this.unboxAddReels(null)
   },
   beforeUnmount() {
     this.unboxRunning = false
