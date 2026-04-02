@@ -84,7 +84,9 @@ function normalizeItem(item) {
     name: item?.name ?? item?.market_hash_name ?? 'Item',
     image: normalizeSteamEconomyImageUrl(rawImage) || rawImage,
     price: toNumber(item?.price ?? item?.value ?? item?.amount, 0),
-    amount: toNumber(item?.amount, 1)
+    amount: toNumber(item?.amount, 1),
+    /** Per-deposit win chance when API sends it (0–100 or 0–1). */
+    chance: item?.chance != null ? toNumber(item.chance, NaN) : NaN
   }
 }
 

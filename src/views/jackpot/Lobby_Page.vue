@@ -204,19 +204,23 @@
         </div>
       </div>
       <span
-        class="flex flex-col items-center w-full left-0 right-0 whitespace-nowrap top-[calc(100%+1rem)]"
+        class="flex flex-col items-center w-full max-w-full left-0 right-0 px-2 sm:px-4 text-center gap-0.5 top-[calc(100%+1rem)]"
       >
         <span class="font-Rubik font-medium text-sm text-[#FF4444]"
-          >Ticket: {{ fairness.ticket || '-' }}</span
+          >Ticket: {{ formatFairnessTicket(fairness.ticket) }}</span
         >
+        <span
+          class="font-Rubik font-medium text-xs sm:text-sm text-[#d7b7b7] font-mono break-all max-w-full"
+          :title="fairness.hash && String(fairness.hash).length > 28 ? fairness.hash : undefined"
+          >Hash: {{ formatFairnessLong(fairness.hash) }}</span
+        >
+        <!-- <span
+          class="font-Rubik font-medium text-xs sm:text-sm text-[#d7b7b7] font-mono break-all max-w-full"
+          :title="fairness.secret && String(fairness.secret).length > 28 ? fairness.secret : undefined"
+          >Secret: {{ formatFairnessLong(fairness.secret) }}</span
+        > -->
         <span class="font-Rubik font-medium text-sm text-[#d7b7b7]"
-          >Hash: {{ fairness.hash || '-' }}</span
-        >
-        <span class="font-Rubik font-medium text-sm text-[#d7b7b7]"
-          >Secret: {{ fairness.secret || '-' }}</span
-        >
-        <span class="font-Rubik font-semimediumbold text-sm text-[#d7b7b7]"
-          >EOS: {{ fairness.eos ? `#${fairness.eos}` : '-' }}</span
+          >EOS: {{ formatFairnessEos(fairness.eos) }}</span
         >
       </span>
 
@@ -237,6 +241,19 @@
         />
       </div>
 
+      <div
+        v-if="winnerBanner"
+        class="w-full transition-all duration-500 max-w-[95vw] sm:max-w-[97vw] xl:max-w-full mt-1"
+      >
+        <JackpotWinnerBanner
+          :avatar="winnerBanner.avatar"
+          :name="winnerBanner.name"
+          :pot-value="winnerBanner.pot_value"
+          :chance="winnerBanner.chance"
+          :ticket="winnerBanner.ticket"
+        />
+      </div>
+
       <!-- PLAYERS AND CONTROLS -->
       <div
         class="w-full flex flex-col gap-y-3 pb-3 mb-5 bg-[rgba(83,0,0,0.8)] border border-solid border-[rgba(83,0,0,1)] backdrop-blur-[200px]"
@@ -246,16 +263,7 @@
           class="min-h-[59px] flex w-full items-center justify-center sm:justify-between gap-2 px-4 py-4 sm:py-0 bg-[rgba(98,1,1,1)] flex-wrap"
         >
           <!-- Left Start -->
-          <div
-            class="font-Rubik font-bold text-base text-white whitespace-nowrap"
-            @click="
-              openModal('jackpot results', {
-                jackpot: game,
-                winner: game.players[0],
-                pot_value: pot_value
-              })
-            "
-          >
+          <div class="font-Rubik font-bold text-base text-white whitespace-nowrap">
             CURRENT ENTRIES {{ (game.players || []).length }}
           </div>
           <!-- Left End -->
@@ -286,9 +294,13 @@
         <!-- players -->
         <div class="flex flex-col gap-y-3 px-4">
           <Row
-            v-for="item in (game.players || []).slice().reverse()"
-            :key="item._id"
-            :user="item"
+            v-for="dep in jackpotDepositRowsDisplay"
+            :key="dep.key"
+            :user="dep.player"
+            :deposit-item="dep.item"
+            :range-low="dep.rangeLow"
+            :range-high="dep.rangeHigh"
+            :chance-pct="dep.chancePct"
             :pot_value="pot_value"
           />
         </div>
@@ -302,6 +314,7 @@ import { CircleProgressBar } from 'circle-progress.vue'
 import { openModal } from '@/modalStore'
 import { Cog8ToothIcon } from '@heroicons/vue/24/solid'
 import Row from '../../components/jackpot/JackpotRow.vue'
+import JackpotWinnerBanner from '../../components/jackpot/JackpotWinnerBanner.vue'
 import Spinner from '../../components/jackpot/spinner/Jackpot_Spinner.vue'
 import {
   depositToJackpot,
@@ -325,6 +338,7 @@ export default {
     CircleProgressBar,
     Cog8ToothIcon,
     Row,
+    JackpotWinnerBanner,
     Spinner
   },
   data() {
@@ -362,7 +376,17 @@ export default {
       /** Keep spinner visible through backend reveal moment even if next startTimer arrives. */
       spinVisibleUntilMs: null,
       /** `serverNowMs - Date.now()` so countdowns match backend clock (not local clock skew). */
-      serverTimeOffsetMs: 0
+      serverTimeOffsetMs: 0,
+      /** Snapshot after spin completes; cleared when a new roll spin starts. */
+      winnerBanner: null,
+      /** Dedupes duplicate `jackpot:roll` (same ticket/hash) or replays after refresh. */
+      lastJackpotRollSignature: '',
+      /**
+       * After the reel animation completes, `refreshRound` often reapplies `serverRoundEndMs`.
+       * If that `end` is still in the past, `byEnd` becomes true again and the spinner rail
+       * re-expands (looks like a "second" spinner). Suppress until a new betting phase or spin.
+       */
+      suppressJackpotSpinnerRailAfterReveal: false
     }
   },
   created() {},
@@ -399,6 +423,7 @@ export default {
     /** Spinner rail only after backend round end time has passed (timer driven by server `end`). */
     showJackpotSpinnerRail() {
       if (!this.hasAtLeastTwoDistinctSteamPlayers) return false
+      if (this.suppressJackpotSpinnerRailAfterReveal) return false
       const now = this.nowMs()
       const byEnd = this.serverRoundEndMs != null && now >= this.serverRoundEndMs
       const byAnimation =
@@ -424,6 +449,57 @@ export default {
         num += (Array.isArray(user?.items) ? user.items : []).length
       })
       return num
+    },
+    /**
+     * One row per deposit (offer/item): cumulative 0–100% wheel segments like history,
+     * in API player order, then item order within each player.
+     */
+    jackpotDepositRows() {
+      const players = Array.isArray(this.game?.players) ? this.game.players : []
+      const pot = this.pot_value
+      const rows = []
+      let acc = 0
+      for (const p of players) {
+        const items = Array.isArray(p.items) ? p.items : []
+        if (items.length === 0) {
+          let c = Number(p.chance)
+          if (!Number.isFinite(c)) c = 0
+          if (c > 0 && c <= 1) c *= 100
+          c = Math.min(100, Math.max(0, c))
+          const rangeLow = acc
+          const rangeHigh = Math.min(100, acc + c)
+          acc = rangeHigh
+          rows.push({
+            key: `p-${p._id ?? p.steamid}-solo`,
+            player: p,
+            item: null,
+            rangeLow,
+            rangeHigh,
+            chancePct: c
+          })
+          continue
+        }
+        items.forEach((it, idx) => {
+          const c = this.depositChanceForItem(it, p, pot)
+          const rangeLow = acc
+          const rangeHigh = Math.min(100, acc + c)
+          acc = rangeHigh
+          const oid = it.offerid ?? it.id ?? idx
+          rows.push({
+            key: `d-${p._id ?? p.steamid}-${oid}-${idx}`,
+            player: p,
+            item: it,
+            rangeLow,
+            rangeHigh,
+            chancePct: c
+          })
+        })
+      }
+      return rows
+    },
+    /** Newest / last deposits first (same as previous player reverse). */
+    jackpotDepositRowsDisplay() {
+      return [...this.jackpotDepositRows].reverse()
     }
   },
   methods: {
@@ -445,8 +521,51 @@ export default {
     updateScreenWidth() {
       this.screenWidth = window.innerWidth
     },
+    /** Chance % for one deposit: API `item.chance`, else value share of pot. */
+    depositChanceForItem(item, player, potValue) {
+      if (item && item.chance != null && Number.isFinite(Number(item.chance))) {
+        let c = Number(item.chance)
+        if (c > 0 && c <= 1) c *= 100
+        return Math.min(100, Math.max(0, c))
+      }
+      const price = toNumber(item?.price, 0)
+      const pv = toNumber(potValue, 0)
+      if (pv > 0 && price > 0) return Math.min(100, (price / pv) * 100)
+      return 0
+    },
+    /** Provably-fair line: readable number for ticket. */
+    formatFairnessTicket(raw) {
+      const s = raw == null ? '' : String(raw).trim()
+      if (!s) return '—'
+      const n = Number(s.replace(/[^\d.-]/g, ''))
+      if (Number.isFinite(n)) {
+        return n.toLocaleString(undefined, {
+          maximumFractionDigits: 14,
+          minimumFractionDigits: 0
+        })
+      }
+      return s
+    },
+    /** Long hex / secrets: compact on one line, full text still copy-friendly via title. */
+    formatFairnessLong(raw) {
+      const s = raw == null ? '' : String(raw).trim()
+      if (!s) return '—'
+      if (s.length <= 28) return s
+      return `${s.slice(0, 14)}…${s.slice(-12)}`
+    },
+    formatFairnessEos(raw) {
+      if (raw == null || String(raw).trim() === '') return '—'
+      const t = String(raw).trim()
+      return t.startsWith('#') ? t : `#${t}`
+    },
+    /** New betting round (socket): clear last roll UI and winner banner. */
+    resetFairnessForNewRound() {
+      this.winnerBanner = null
+      this.fairness = { ticket: '', hash: '', secret: '', eos: '' }
+    },
     demoOpen() {
       this.isRolling = true
+      this.suppressJackpotSpinnerRailAfterReveal = false
       if (this.$refs.spinner && this.game.players?.length) {
         this.jackpotSpinDone = true
         const expectedRevealMs =
@@ -479,6 +598,8 @@ export default {
         this.pendingSpinWinner || this.findWinnerByTicket(this.fairness.ticket)
       if (!target) return
 
+      this.suppressJackpotSpinnerRailAfterReveal = false
+      this.winnerBanner = null
       this.jackpotSpinDone = true
       const syncSeed = [this.fairness.ticket, this.fairness.hash, this.game?._id]
         .filter((x) => x != null && String(x).length > 0)
@@ -502,21 +623,22 @@ export default {
     },
     async onJackpotSpinComplete() {
       this.spinVisibleUntilMs = null
+      this.suppressJackpotSpinnerRailAfterReveal = true
 
       const winnerForResults =
         this.pendingSpinWinner || this.findWinnerByTicket(this.fairness.ticket)
       this.pendingSpinWinner = null
 
-      /** Snapshot ended round before refresh clears / replaces players (same payload shape as "CURRENT ENTRIES" click). */
       if (winnerForResults && Array.isArray(this.game?.players) && this.game.players.length) {
-        this.openModal('jackpot results', {
-          jackpot: {
-            ...this.game,
-            players: [...this.game.players]
-          },
-          winner: winnerForResults,
-          pot_value: this.pot_value
-        })
+        this.winnerBanner = {
+          avatar: winnerForResults.avatar || '/img/user/userImage.png',
+          name: winnerForResults.name ?? '—',
+          chance: toNumber(winnerForResults.chance, 0),
+          pot_value: this.pot_value,
+          ticket: String(this.fairness.ticket || '').trim() || '—'
+        }
+      } else {
+        this.winnerBanner = null
       }
 
       // Stop round countdown; next round timing comes from `jackpot:startTimer` / REST when ready.
@@ -588,6 +710,10 @@ export default {
       this.serverRoundStartMs = startMs
       this.serverRoundEndMs = endMs
       this.timerTotalSeconds = Math.max(1, Math.ceil((endMs - startMs) / 1000))
+      // New round with betting still open — allow spinner rail again when this round's end passes.
+      if (this.nowMs() < endMs) {
+        this.suppressJackpotSpinnerRailAfterReveal = false
+      }
       // Round is closing (server state, past end time, or spin): do not run the countdown interval.
       if (this.isRoundEndingPhase) {
         this.stopTimerTick()
@@ -768,10 +894,17 @@ export default {
         onStartTimer: ({ start, end, send } = {}) => {
           if (start != null && end != null) {
             if (send != null) this.syncServerTimeFromTimestamp(send)
+            this.lastJackpotRollSignature = ''
+            this.suppressJackpotSpinnerRailAfterReveal = false
+            this.resetFairnessForNewRound()
             this.applyServerTimer(start, end)
           }
         },
         onRoll: async ({ ticket, hash, block, avatars, winner, winner_data }) => {
+          const rollSig = `${String(ticket ?? '')}|${String(hash ?? '')}`
+          if (rollSig === this.lastJackpotRollSignature && rollSig !== '|') return
+          this.lastJackpotRollSignature = rollSig
+
           this.fairness.ticket = ticket ?? ''
           this.fairness.hash = hash ?? ''
           this.fairness.eos =

@@ -126,7 +126,9 @@ export default {
       unboxCount: 1,
       winner: null,
       spinRandFn: null,
-      spinDurationMs: 15000
+      spinDurationMs: 15000,
+      /** Cleared when a new `demoSpin` starts so overlapping calls do not run two spins. */
+      demoSpinLeadTimeout: null
     }
   },
   props: ['caseContent', 'pot_value', 'rollAvatars', 'displayTicket'],
@@ -151,6 +153,13 @@ export default {
       return Math.random()
     },
     demoSpin(itemsWon, syncSeed, winningTicket, spinDurationMs) {
+      if (this.demoSpinLeadTimeout != null) {
+        clearTimeout(this.demoSpinLeadTimeout)
+        this.demoSpinLeadTimeout = null
+      }
+      clearTimeout(this.unboxReelsSpinTimeout)
+      this.unboxReelsSpinTimeout = null
+
       this.finsihed_spinning = false
       this.spinRandFn =
         syncSeed != null && String(syncSeed).length > 0
@@ -165,7 +174,8 @@ export default {
         ? parsed
         : toNum(itemsWon?.ticketRange?.min)
       let games = []
-      setTimeout(() => {
+      this.demoSpinLeadTimeout = setTimeout(() => {
+        this.demoSpinLeadTimeout = null
         for (let i = 0; i < this.unboxCount; i++) {
           games.push({
             demo: true,
@@ -325,8 +335,9 @@ export default {
     }
   },
   watch: {
+    /** Shallow only — `deep` was re-running during the spin and could stack duplicate animations. */
     unboxGames: {
-      deep: true,
+      deep: false,
       handler(data, dataOld) {
         if (this.unboxGames.length >= 1) {
           clearTimeout(this.unboxReelsSpinTimeout)
@@ -396,6 +407,7 @@ export default {
   beforeUnmount() {
     this.unboxRunning = false
     this.spinRandFn = null
+    clearTimeout(this.demoSpinLeadTimeout)
     clearTimeout(this.unboxReelsSpinTimeout)
     cancelAnimationFrame(this.unboxReelsPosRepeater)
   }
