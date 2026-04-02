@@ -13,14 +13,21 @@ export const SOCKET_SERVER_ORIGIN = 'http://116.202.242.165:2082'
 export const BACKEND_ORIGIN = SOCKET_SERVER_ORIGIN
 
 /**
- * Where `io()` connects: direct backend (must allow CORS from your frontend origin).
- * Override with `VITE_SOCKET_URL` (e.g. `wss://…`) if the socket is hosted elsewhere.
+ * Resolved URL for `io()` (runtime). HTTPS pages cannot use `ws://` / `http://` (mixed content).
+ * - Set `VITE_SOCKET_URL` to `https://…` (or `wss://…`) when TLS terminates on another host (e.g. nginx in front of :2082).
+ * - If unset and the app runs on HTTPS, the default origin is upgraded `http` → `https` so the client uses WSS;
+ *   the host must then serve TLS on port 2082, or you must set `VITE_SOCKET_URL` to that HTTPS proxy.
  */
-const SOCKET_URL = (() => {
-  const env = import.meta.env.VITE_SOCKET_URL
-  if (env !== undefined && String(env).trim() !== '') return String(env).replace(/\/$/, '')
-  return SOCKET_SERVER_ORIGIN
-})()
+export function getSocketUrl() {
+  const explicit = (import.meta.env.VITE_SOCKET_URL || '').trim()
+  if (explicit) return explicit.replace(/\/$/, '')
+
+  const base = SOCKET_SERVER_ORIGIN
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && base.startsWith('http://')) {
+    return base.replace(/^http:/, 'https:')
+  }
+  return base
+}
 
 /** Set `VITE_SOCKET_FORCE_POLLING=true` to use polling only (no WebSocket upgrade). */
 const SOCKET_FORCE_POLLING = import.meta.env.VITE_SOCKET_FORCE_POLLING === 'true'
@@ -38,7 +45,7 @@ export function getSocketDebugInfo() {
   return {
     enabled: isSocketEnabled(),
     socketServerUrl: SOCKET_SERVER_ORIGIN,
-    ioUrl: SOCKET_URL,
+    ioUrl: getSocketUrl(),
     enginePath: SOCKET_PATH,
     transports: SOCKET_FORCE_POLLING ? ['polling'] : ['websocket', 'polling']
   }
@@ -268,7 +275,7 @@ async function request(path, options = {}) {
 }
 
 /**
- * Connects directly to the socket host (`SOCKET_SERVER_ORIGIN` or `VITE_SOCKET_URL`).
+ * Connects directly to the socket host (see `getSocketUrl()`).
  * Backend must send `Access-Control-Allow-Origin` (and credentials if used) for the browser origin.
  */
 export function createJackpotSocket() {
@@ -276,7 +283,7 @@ export function createJackpotSocket() {
 
   const token = getAuthToken()
 
-  return io(SOCKET_URL, {
+  return io(getSocketUrl(), {
     path: SOCKET_PATH,
     transports: SOCKET_FORCE_POLLING ? ['polling'] : ['websocket', 'polling'],
     upgrade: !SOCKET_FORCE_POLLING,
