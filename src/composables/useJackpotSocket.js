@@ -33,10 +33,19 @@ export function useJackpotSocket({
         luckiest: true
       }
       const sid = getSteamId?.()
+      console.log('socket is connected');
+      socket.emit('jackpot:startTimer', {potid: potId}, (response) => {
+        // console.log('=============start timer=============', response)
+      })
+
 
       socket.emit('jackpot:subscribe', payload, (response) => {
         onSubscribe?.(response)
       })
+    })
+
+    socket.on('jackpot:subscribe', (response) => {
+      onSubscribe?.(response)
     })
 
     socket.on('connect_error', (error) => {

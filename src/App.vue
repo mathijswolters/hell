@@ -18,11 +18,13 @@
         >
           <div
             ref="scrollableContainer"
-            class="flex-1 min-h-0 w-full flex justify-center px-2 overflow-y-auto"
+            class="flex-1 min-h-0 w-full overflow-y-auto flex justify-center"
           >
-            <RouterView class="w-full max-w-full" />
+            <div class="w-full max-w-full flex flex-col">
+              <RouterView class="w-full max-w-full" />
+              <Footer_component v-if="loggedIn" class="w-full shrink-0" />
+            </div>
           </div>
-          <Footer_component v-if="loggedIn" class="w-full flex-shrink-0 mt-auto" />
         </div>
       </div>
       <div
@@ -149,7 +151,6 @@ export default {
     },
     // Watch for route changes
     $route() {
-      // Scroll the container to the top
       const scrollableContainer = this.$refs.scrollableContainer
       if (scrollableContainer) {
         scrollableContainer.scrollTop = 0

@@ -1,103 +1,128 @@
 <template>
   <div
-    class="relative w-[min(100vw-1rem,42rem)] max-h-[min(90vh,40rem)] flex flex-col bg-[linear-gradient(180deg,rgba(46,5,5,0.98)_0%,rgba(30,1,1,0.98)_100%)] backdrop-blur-xl border border-[#530000] rounded-lg shadow-[0_4px_24px_rgba(0,0,0,0.5)] overflow-hidden"
+    class="jp-details-modal relative w-[min(100vw-1rem,50rem)] max-h-[min(90vh,44rem)] flex flex-col rounded-lg overflow-hidden border border-[#3d0000] shadow-[0_8px_32px_rgba(0,0,0,0.65)]"
   >
+    <!-- Header -->
     <div
-      class="flex justify-between items-center px-4 py-3 border-b border-[rgba(98,1,1,1)] shrink-0 bg-[#2e0505]"
+        class="relative flex justify-start items-center px-4 py-3 shrink-0 border-b border-[#6a1715] bg-[#4c0703]"
     >
-      <span class="font-Rubik font-extrabold text-white text-base uppercase tracking-wide"
-        >JACKPOT #{{ displayPotId }}</span
-      >
+      <span class="font-Rubik font-extrabold text-white text-base uppercase tracking-wide text-center">
+        JACKPOT #{{ displayPotId }}
+      </span>
       <XMarkIcon
-        class="w-6 h-6 cursor-pointer hover:scale-110 transition-transform fill-[#d7b7b7]"
+        class="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 cursor-pointer hover:opacity-90 transition-opacity text-white"
         @click="closeModal"
       />
     </div>
 
-    <div class="flex-1 overflow-y-auto px-3 py-3 min-h-[12rem]">
-      <div v-if="loading" class="flex items-center justify-center py-16 text-[#d7b7b7] font-Rubik text-sm">
+    <div
+      class="flex-1 overflow-y-auto px-4 py-4 min-h-[12rem] bg-[#4c0703] text-center"
+    >
+      <div
+        v-if="loading"
+        class="flex items-center justify-center py-16 text-[#c9a8a8] font-Rubik text-sm"
+      >
         Loading…
       </div>
-      <div v-else-if="loadError" class="text-center py-12 px-4 text-[#ff6b6b] font-Rubik text-sm">
+      <div
+        v-else-if="loadError"
+        class="text-center py-12 px-4 text-[#ff6b6b] font-Rubik text-sm"
+      >
         {{ loadError }}
       </div>
       <template v-else-if="details">
-        <!-- Winner summary -->
+        <!-- Winner summary bar -->
         <div
-          class="flex flex-wrap items-center gap-x-2 gap-y-1 justify-center py-3 px-2 mb-3 rounded bg-[#5e0303]/80 border border-[#620101]"
+          class="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-x-2 gap-y-2 py-3 px-3 mb-4 rounded-md bg-[#4c0703]/90"
         >
           <div
-            class="w-11 h-11 rounded-[4px] bg-cover bg-center shrink-0"
+            class="w-12 h-12 rounded-[4px] bg-cover bg-center shrink-0 border border-[#3d0000] mx-auto sm:mx-0"
             :style="{ backgroundImage: `url(${winnerAvatar})` }"
           />
           <p
-            class="text-center font-Rubik text-sm sm:text-base leading-snug"
+            class="font-Rubik text-sm sm:text-[0.9375rem] leading-snug font-bold flex flex-wrap items-baseline justify-center gap-x-1 gap-y-1 max-w-full"
           >
-            <span class="text-[rgba(255,191,20,1)] font-bold">{{ winnerName }}</span>
-            <span class="text-white font-bold"> | WON </span>
-            <span class="text-[rgba(4,171,83,1)] font-bold"
-              >${{ formatMoney(winnerWinnings) }}</span
-            >
-            <span class="text-white font-bold"> WITH </span>
-            <span class="text-[rgba(255,52,53,1)] font-bold">{{ formatChance(winnerChance) }}%</span>
-            <span class="text-white font-bold"> CHANCE | TICKET:</span>
-            <span class="text-white font-semibold">{{ formatTicket(details.ticket) }}</span>
+            <span class="text-[#ffff00]">{{ winnerName }}</span>
+            <span class="text-white">| WON</span>
+            <span class="text-[#00ff00]">${{ formatMoney(winnerWinnings) }}</span>
+            <span class="text-white">WITH</span>
+            <span class="text-[#ff4d4d]">{{ formatChance(winnerChance) }}%</span>
+            <span class="text-white">CHANCE | TICKET:</span>
+            <span class="text-white font-semibold tabular-nums">{{ formatTicket(details.ticket) }}</span>
           </p>
         </div>
 
         <!-- Deposits -->
-        <div class="flex flex-col gap-3 pb-2">
+        <div class="flex flex-col gap-4 pb-2 items-center">
           <div
             v-for="(dep, idx) in depositsWithRanges"
             :key="dep.steamid + '-' + idx"
-            class="rounded border p-3 bg-[#4b0505]"
+            class="rounded-lg border p-4 transition-shadow w-full max-w-full"
             :class="
               isWinnerDeposit(dep)
-                ? 'border-[rgba(255,191,20,0.9)] ring-1 ring-[rgba(255,52,53,0.35)]'
-                : 'border-[#620101]'
+                ? 'bg-[#8a1715] border-[#ffff00] shadow-[0_0_0_1px_rgba(255,255,0,0.35)]'
+                : 'bg-[#4c0703] border-[#a8322b]'
             "
           >
-            <div class="flex flex-wrap items-center gap-2 justify-between mb-3">
-              <div class="flex items-center gap-2 min-w-0">
+            <!-- Card header: avatar + single line stats + pie -->
+            <div
+              class="flex flex-col items-center gap-3 mb-4 sm:flex-row sm:flex-wrap sm:justify-center"
+            >
+              <div
+                class="flex flex-col sm:flex-row items-center gap-3 min-w-0 w-full sm:w-auto justify-center"
+              >
                 <div
-                  class="w-10 h-10 rounded-[4px] bg-cover bg-center shrink-0"
+                  class="w-11 h-11 rounded-[4px] bg-cover bg-center shrink-0 border border-[#5c0000]"
                   :style="{ backgroundImage: `url(${dep.avatar || '/img/user/userImage.png'})` }"
                 />
-                <div class="min-w-0">
-                  <div class="text-white font-Rubik font-bold text-sm truncate">{{ dep.name }}</div>
-                  <div class="text-white font-Rubik text-xs font-bold">
-                    ${{ formatMoney(dep.value) }} | {{ formatChance(dep.chance) }}%
-                  </div>
+                <div class="min-w-0 max-w-full">
+                  <p
+                    class="font-Rubik font-bold text-sm sm:text-[0.9375rem] leading-tight text-white text-center"
+                  >
+                    <span class="text-white">{{ dep.name }}</span>
+                    <span class="text-white"> ${{ formatMoney(dep.value) }}</span>
+                    <span class="text-white"> | {{ formatChance(dep.chance) }}%</span>
+                    &nbsp;&nbsp;
+                    <span class="text-white/75 font-semibold text-xs sm:text-sm">
+                      {{ dep.rangeLow.toFixed(2) }}% – {{ dep.rangeHigh.toFixed(2) }}%
+                    </span>
+                  </p>
                 </div>
               </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <span class="text-white/70 font-Rubik text-xs font-bold whitespace-nowrap">
-                  {{ dep.rangeLow.toFixed(2) }}% - {{ dep.rangeHigh.toFixed(2) }}%
-                </span>
+              <div class="shrink-0 flex items-center justify-center w-full sm:w-auto">
                 <svg
                   viewBox="-1 -1 2 2"
                   xmlns="http://www.w3.org/2000/svg"
-                  class="w-9 h-9 rounded-full -rotate-90 shrink-0"
+                  class="w-10 h-10 rounded-full -rotate-90"
+                  aria-hidden="true"
                 >
-                  <circle cx="0" cy="0" r="1" fill="rgba(4, 171, 83, 0.2)" />
-                  <path :d="piePath(dep.rangeLow, dep.rangeHigh)" fill="white" />
+                  <circle cx="0" cy="0" r="1" fill="rgba(92, 0, 0, 0.85)" />
+                  <path :d="piePath(dep.rangeLow, dep.rangeHigh)" fill="#ffffff" />
                 </svg>
               </div>
             </div>
-            <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
+
+            <!-- Items grid -->
+            <div class="flex flex-wrap gap-2 justify-center">
               <div
                 v-for="(skin, si) in dep.skins || []"
                 :key="si + '-' + (skin.name || si)"
-                class="w-[118px] bg-[rgba(95,3,3,1)] min-h-[120px] flex flex-col items-center justify-center px-2 py-2 rounded"
+                class="w-[calc(50%-0.25rem)] sm:w-[118px] bg-[#5c0000] min-h-[112px] flex flex-col items-center justify-center px-2 py-3 rounded-md border border-[#6b1515]/60"
               >
-                <img :src="skinImageUrl(skin)" class="max-w-[56px] max-h-[56px] object-contain" alt="" />
+                <img
+                  :src="skinImageUrl(skin)"
+                  class="max-w-[56px] max-h-[56px] object-contain"
+                  alt=""
+                />
                 <span
-                  class="w-full text-center truncate font-Rubik font-semibold text-[#d7b7b7] text-xs mt-1"
-                  >{{ skin.name }}</span
+                  class="w-full text-center truncate font-Rubik font-semibold text-white/90 text-[11px] sm:text-xs mt-2 leading-tight"
+                  :title="skin.name"
                 >
-                <span class="font-Rubik text-white text-sm font-semibold"
-                  >${{ formatMoney(skin.value) }}</span
-                >
+                  {{ skin.name }}
+                </span>
+                <span class="font-Rubik text-white text-sm font-bold mt-0.5 tabular-nums">
+                  ${{ formatMoney(skin.value) }}
+                </span>
               </div>
             </div>
           </div>
@@ -106,7 +131,7 @@
         <!-- Fairness -->
         <div
           v-if="details.hash || details.block"
-          class="mt-2 pt-3 border-t border-[rgba(98,1,1,0.5)] text-xs font-Rubik text-[#a68381] space-y-1 pb-2"
+          class="mt-1 pt-4 border-t border-[#3d0000] text-xs font-Rubik text-[#a68381] space-y-1.5 pb-1 text-center [&_p]:break-words"
         >
           <p v-if="details.hash">
             <span class="text-white font-extrabold">HASH</span>: {{ details.hash }}
@@ -156,10 +181,7 @@ export default {
       return this.details?.winner_data?.avatar || '/img/user/userImage.png'
     },
     winnerWinnings() {
-      return toNumber(
-        this.details?.pot,
-        0
-      )
+      return toNumber(this.details?.pot, 0)
     },
     winnerChance() {
       return toNumber(this.details?.winner_data?.chance, 0)
@@ -253,11 +275,18 @@ export default {
 </script>
 
 <style scoped>
+.jp-details-modal {
+  font-family: 'Rubik', ui-sans-serif, system-ui, sans-serif;
+}
+
 ::-webkit-scrollbar {
   width: 0.35rem;
 }
 ::-webkit-scrollbar-thumb {
-  background: #710101;
+  background: #5c0000;
   border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #1a0000;
 }
 </style>

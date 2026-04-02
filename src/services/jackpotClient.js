@@ -85,8 +85,37 @@ function normalizeItem(item) {
   }
 }
 
+/**
+ * Collect skin/item arrays from various API shapes (items, skins, nested deposits).
+ */
+function sourcePlayerItems(player) {
+  if (!player || typeof player !== 'object') return []
+  const tryArrays = [
+    player.items,
+    player.skins,
+    player.inventory,
+    player.bet_items,
+    player.deposited_items
+  ]
+  for (const arr of tryArrays) {
+    if (Array.isArray(arr) && arr.length > 0) return arr
+  }
+  if (Array.isArray(player.deposits)) {
+    const out = []
+    for (const d of player.deposits) {
+      if (Array.isArray(d?.skins)) out.push(...d.skins)
+      else if (Array.isArray(d?.items)) out.push(...d.items)
+    }
+    if (out.length > 0) return out
+  }
+  for (const arr of tryArrays) {
+    if (Array.isArray(arr)) return arr
+  }
+  return []
+}
+
 function normalizePlayer(player) {
-  const items = Array.isArray(player?.items) ? player.items.map(normalizeItem) : []
+  const items = sourcePlayerItems(player).map(normalizeItem)
   const value =
     toNumber(player?.value, NaN) ??
     toNumber(player?.wager, NaN) ??
@@ -107,11 +136,17 @@ function normalizePlayer(player) {
     items,
     percentage_ticket_range: {
       lowest: toNumber(
-        player?.percentage_ticket_range?.lowest ?? player?.ticketRange?.min ?? player?.ticket_min,
+        player?.percentage_ticket_range?.lowest ??
+          player?.ticketRange?.min ??
+          player?.ticket_min ??
+          player?.ticket_low,
         0
       ),
       highest: toNumber(
-        player?.percentage_ticket_range?.highest ?? player?.ticketRange?.max ?? player?.ticket_max,
+        player?.percentage_ticket_range?.highest ??
+          player?.ticketRange?.max ??
+          player?.ticket_max ??
+          player?.ticket_high,
         0
       )
     },
@@ -142,8 +177,18 @@ function normalizeHistoryEntry(entry) {
   }
 }
 
+/**
+ * Convert API timestamps to milliseconds. Supports Unix seconds and ms.
+ */
+export function serverTimestampToMs(ts) {
+  const n = toNumber(ts, NaN)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return n < 1e12 ? Math.round(n * 1000) : Math.round(n)
+}
+
 function normalizeRound(round) {
-  const base = round?.jackpot ?? round
+  if (!round || typeof round !== 'object') return null
+  const base = round.jackpot ?? round
 
   let players = []
   if (Array.isArray(base?.players)) {
@@ -165,6 +210,32 @@ function normalizeRound(round) {
     start: toNumber(base?.start, 0),
     end: toNumber(base?.end, 0)
   }
+}
+
+/**
+ * If the API returns players without `items` (common on list/poll endpoints), keep prior
+ * items so the lobby still shows each user's skins after refresh.
+ */
+export function mergeRoundPlayersPreservingItems(prevPlayers, nextPlayers) {
+  if (!Array.isArray(nextPlayers)) return nextPlayers
+  const prev = Array.isArray(prevPlayers) ? prevPlayers : []
+  return nextPlayers.map((np) => {
+    const match = prev.find(
+      (p) =>
+        (np.steamid != null &&
+          p.steamid != null &&
+          String(p.steamid) === String(np.steamid)) ||
+        (np.offerid != null &&
+          p.offerid != null &&
+          String(np.offerid) === String(p.offerid))
+    )
+    if (!match) return np
+    const nextItems = Array.isArray(np.items) ? np.items : []
+    const prevItems = Array.isArray(match.items) ? match.items : []
+    if (nextItems.length > 0) return np
+    if (prevItems.length > 0) return { ...np, items: prevItems }
+    return np
+  })
 }
 
 async function parseJsonBody(res) {
@@ -266,7 +337,6 @@ export async function getJackpotDetails({ gameid, potid = 1 }) {
 }
 
 export async function loadInventory(steamid) {
-  steamid = '76561197984485194';
   const data = await request(`/inventory/load?steamid=${steamid}`)
   const inventory = Array.isArray(data) ? data : data?.inventory ?? []
   return inventory.map(normalizeItem)
@@ -276,7 +346,6 @@ export async function depositToJackpot({ steamid, skins }) {
   const controller = new AbortController()
   const t = setTimeout(() => controller.abort(), 60000)
   try {
-    steamid = '76561197984485194';
     return await request(`/jackpot/deposit?steamid=${steamid}`, {
       method: 'POST',
       body: JSON.stringify({ steamid, skins }),

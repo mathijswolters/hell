@@ -75,6 +75,11 @@
 import UnboxReel from './Reel.vue'
 import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 
+function toNum(v, fallback = 0) {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : fallback
+}
+
 export default {
   name: 'UnboxSpinner',
   components: {
@@ -109,19 +114,48 @@ export default {
       },
       generalTimeDiff: 0,
       unboxCount: 1,
-      winner: null
+      winner: null,
+      /** When set, reel shuffle and end jitter use this PRNG so all clients match the same roll. */
+      spinRandFn: null
     }
   },
   props: ['caseContent', 'pot_value'],
   methods: {
-    demoSpin(itemsWon) {
+    _makeSeededRandom(seedStr) {
+      let h = 2166136261
+      const s = String(seedStr || '')
+      for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i)
+        h = Math.imul(h, 16777619)
+      }
+      let a = h >>> 0
+      return () => {
+        a = (a + 0x6d2b79f5) >>> 0
+        let t = Math.imul(a ^ (a >>> 15), a | 1)
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+      }
+    },
+    _spinRandom() {
+      if (this.spinRandFn) return this.spinRandFn()
+      return Math.random()
+    },
+    demoSpin(itemsWon, syncSeed, winningTicket) {
       this.finsihed_spinning = false
+      this.spinRandFn =
+        syncSeed != null && String(syncSeed).length > 0
+          ? this._makeSeededRandom(String(syncSeed))
+          : null
+      const parsed = Number(String(winningTicket ?? '').replace(/[^\d.-]/g, ''))
+      const outcome = Number.isFinite(parsed)
+        ? parsed
+        : toNum(itemsWon?.ticketRange?.min)
       let games = []
       setTimeout(() => {
         for (let i = 0; i < this.unboxCount; i++) {
           games.push({
             demo: true,
-            outcome: itemsWon.ticketRange.min,
+            outcome,
             updatedAt: new Date()
           })
         }
@@ -185,40 +219,52 @@ export default {
 
       this.unboxReelsPosRepeater = requestAnimationFrame(this.unboxGetReelsPos)
     },
+    /** Entrants that can appear on the jackpot reel (need ticket range for outcome matching). */
+    _jackpotSpinParticipants() {
+      const raw = Array.isArray(this.caseContent) ? this.caseContent : []
+      return raw.filter(
+        (p) => p?.ticketRange && toNum(p.ticketRange.max) >= toNum(p.ticketRange.min)
+      )
+    },
+    /** One random entrant weighted by `chance` (%), else ticket span, else uniform. Uses _spinRandom (seeded when syncing). */
+    _pickWeightedPlayer(players) {
+      if (!players.length) return null
+      const weights = players.map((p) => {
+        const c = toNum(p.chance)
+        if (c > 0) return c
+        const tr = p.ticketRange
+        const span = Math.max(0, toNum(tr?.max) - toNum(tr?.min))
+        return span > 0 ? span : 0
+      })
+      let sum = weights.reduce((a, b) => a + b, 0)
+      if (sum <= 0) {
+        return players[Math.floor(this._spinRandom() * players.length)]
+      }
+      let r = this._spinRandom() * sum
+      for (let i = 0; i < players.length; i++) {
+        r -= weights[i]
+        if (r <= 0) return players[i]
+      }
+      return players[players.length - 1]
+    },
     unboxAddReels() {
-      let items = this.unboxGetItems
       this.unboxReels = { 1: [], 2: [], 3: [], 4: [] }
-      /* Empty pot: random index is always 0 and items[0] is undefined → Reel renders item.avatar and throws — blank page. */
-      if (!items.length) {
-        items = [
+      let pickList = this._jackpotSpinParticipants()
+      if (!pickList.length) {
+        pickList = [
           {
             avatar: '/img/user/userImage.png',
-            ticketRange: { min: 0, max: 1000 }
+            ticketRange: { min: 0, max: 1000 },
+            chance: 100
           }
         ]
       }
 
       for (const reel of Object.keys(this.unboxReels)) {
         for (let i = 0; i < 112; i++) {
-          this.unboxReels[reel].push(items[Math.floor(Math.random() * items.length)])
+          this.unboxReels[reel].push(this._pickWeightedPlayer(pickList))
         }
       }
-    }
-  },
-  computed: {
-    unboxGetItems() {
-      let items = []
-
-      for (let item of this.unboxGetItemsFormated(this.caseContent)) {
-        const tr = item?.ticketRange
-        if (!tr) continue
-        const count = Math.floor((tr.max - tr.min) / 1000)
-        for (let i = 0; i < (count <= 0 ? 1 : count); i++) {
-          items.push(item)
-        }
-      }
-
-      return items
     }
   },
   watch: {
@@ -226,9 +272,8 @@ export default {
       deep: true,
       handler(data, dataOld) {
         if (this.unboxGames.length >= 1) {
-          if (dataOld.length !== 0) {
-            this.unboxAddReels()
-          }
+          /* Always rebuild from current caseContent — first spin used to skip this when dataOld was [], leaving the empty-state reel (one placeholder). */
+          this.unboxAddReels()
           this.unboxGetReelsPos()
 
           for (const [index, game] of this.unboxGames.entries()) {
@@ -252,7 +297,7 @@ export default {
               this.unboxReelStyle = {
                 transform:
                   'translateX(-' +
-                  (2600.5 + (60 / 8) * Math.floor(Math.random() * (7 - 1 + 1)) + 1) +
+                  (2600.5 + (60 / 8) * Math.floor(this._spinRandom() * (7 - 1 + 1)) + 1) +
                   'px) translateY(0px)',
                 transition: 'transform ' + timeLeft / 1000 + 's cubic-bezier(0.1, 0, 0.2, 1)'
               }
@@ -267,6 +312,7 @@ export default {
 
                 setTimeout(() => {
                   this.unboxRunning = false
+                  this.spinRandFn = null
                   this.$emit('complete', game.demo)
                 }, 250)
                 setTimeout(() => {
@@ -285,6 +331,7 @@ export default {
   },
   beforeUnmount() {
     this.unboxRunning = false
+    this.spinRandFn = null
     clearTimeout(this.unboxReelsSpinTimeout)
     cancelAnimationFrame(this.unboxReelsPosRepeater)
   }
