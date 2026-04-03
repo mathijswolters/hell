@@ -136,57 +136,76 @@
           </div>
 
           <div
-            v-if="!loadingInventory && filteredItems.length >= 24"
-            class="absolute h-10 bottom-0 z-10 w-full ml-4 max-w-[calc(100%-32px)] opacity-90 bg-[linear-gradient(180deg,rgba(83,1,1,0)_20%,#530101_100%)]"
-          ></div>
-          <div
-            v-if="!loadingInventory"
-            class="overflow-y-auto grid w-full py-2 justify-center gap-x-2 gap-y-1 px-2 relative max-h-full"
-            style="grid-template-columns: repeat(auto-fill, 125.5px)"
+            v-else-if="inventory.length === 0"
+            class="flex h-full min-h-[12rem] items-center justify-center px-4 py-8"
           >
-            <div
-              v-for="(item, idx) in filteredItems"
-              :key="item._id ?? item.id ?? idx"
-              @click="item.banned ? '' : selectItem(item)"
-              class="w-[125.5px] h-[134px] flex flex-col items-center justify-center px-4"
-              :class="{
-                'bg-[#8F0E0E] cursor-pointer hover:scale-[1.05] transition-transform':
-                  isSelected(item) && !item.banned,
-                'bg-[#690405] cursor-pointer hover:scale-[1.05] transition-transform':
-                  !isSelected(item) && !item.banned,
-                'select-none cursor-not-allowed bg-[#2F0101]': item.banned
-              }"
-            >
-              <div class="relative w-[76px] h-[75px] flex items-center justify-center">
-                <img
-                  v-if="item.banned"
-                  class="absolute min-w-[76px] w-[76px] min-h-[75px] h-[75px] z-10"
-                  src="../../assets/icons/ban.png"
-                />
-                <img
-                  :src="item.image"
-                  class="max-w-[64px]"
-                  :class="{ 'opacity-50': item.banned }"
-                />
-              </div>
-
-              <span
-                class="w-full truncate text-center font-Rubik font-semibold text-[#d7b7b7] text-sm"
-                :class="{ 'opacity-50': item.banned }"
-                >{{ item.name }}</span
-              >
-              <span
-                class="font-Rubik text-white text-base font-semibold"
-                :class="{ 'opacity-50': item.banned }"
-                >${{
-                  Number(item.price).toLocaleString(undefined, {
-                    maximumFractionDigits: 2,
-                    minimumFractionDigits: 2
-                  })
-                }}</span
-              >
-            </div>
+            <p class="text-center text-[#c9a8a8] font-Rubik text-sm leading-relaxed">
+              No items in your inventory.
+            </p>
           </div>
+
+          <div
+            v-else-if="filteredItems.length === 0"
+            class="flex h-full min-h-[12rem] items-center justify-center px-4 py-8"
+          >
+            <p class="text-center text-[#c9a8a8] font-Rubik text-sm leading-relaxed">
+              No items match your search.
+            </p>
+          </div>
+
+          <template v-else>
+            <div
+              v-if="filteredItems.length >= 24"
+              class="absolute h-10 bottom-0 z-10 w-full ml-4 max-w-[calc(100%-32px)] opacity-90 bg-[linear-gradient(180deg,rgba(83,1,1,0)_20%,#530101_100%)]"
+            ></div>
+            <div
+              class="overflow-y-auto grid w-full py-2 justify-center gap-x-2 gap-y-1 px-2 relative max-h-full"
+              style="grid-template-columns: repeat(auto-fill, 125.5px)"
+            >
+              <div
+                v-for="(item, idx) in filteredItems"
+                :key="item._id ?? item.id ?? idx"
+                @click="item.banned ? '' : selectItem(item)"
+                class="w-[125.5px] h-[134px] flex flex-col items-center justify-center px-4"
+                :class="{
+                  'bg-[#8F0E0E] cursor-pointer hover:scale-[1.05] transition-transform':
+                    isSelected(item) && !item.banned,
+                  'bg-[#690405] cursor-pointer hover:scale-[1.05] transition-transform':
+                    !isSelected(item) && !item.banned,
+                  'select-none cursor-not-allowed bg-[#2F0101]': item.banned
+                }"
+              >
+                <div class="relative w-[76px] h-[75px] flex items-center justify-center">
+                  <img
+                    v-if="item.banned"
+                    class="absolute min-w-[76px] w-[76px] min-h-[75px] h-[75px] z-10"
+                    src="../../assets/icons/ban.png"
+                  />
+                  <img
+                    :src="item.image"
+                    class="max-w-[64px]"
+                    :class="{ 'opacity-50': item.banned }"
+                  />
+                </div>
+
+                <span
+                  class="w-full truncate text-center font-Rubik font-semibold text-[#d7b7b7] text-sm"
+                  :class="{ 'opacity-50': item.banned }"
+                  >{{ item.name }}</span
+                >
+                <span
+                  class="font-Rubik text-white text-base font-semibold"
+                  :class="{ 'opacity-50': item.banned }"
+                  >${{
+                    Number(item.price).toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                      minimumFractionDigits: 2
+                    })
+                  }}</span
+                >
+              </div>
+            </div>
+          </template>
         </div>
         <!-- Items Selection End -->
       </div>
@@ -384,8 +403,8 @@ export default {
 
       // Filter the items by the search query
       let filteredItems = this.inventory.filter((item) => {
-        const matchesSearch = item.name.toLowerCase().includes(lowercaseQuery)
-        return matchesSearch
+        const name = typeof item?.name === 'string' ? item.name : ''
+        return name.toLowerCase().includes(lowercaseQuery)
       })
 
       if (this.sort === 'newest first') {
