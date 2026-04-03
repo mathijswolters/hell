@@ -68,6 +68,26 @@
 <script>
 import UnboxReel from "./Reel.vue";
 
+/** Deterministic string → uint32 (same input → same hash on all runtimes). */
+function fnv1a32(str) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** Seeded PRNG (mulberry32); same seed ⇒ same sequence on all browsers. */
+function mulberry32(a) {
+  return function () {
+    let t = (a += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 export default {
   name: "UnboxSpinner",
   components: {
@@ -108,7 +128,9 @@ export default {
       winner: null,
       /** Set by demoSpin / unboxSpin — backend winner; reel only displays this at the end. */
       spinWinner: null,
-      spinDurationMs: 15000,
+      /** Provably-fair string from lobby (ticket|hash|roundId) — same seed ⇒ same reel order + stop slot. */
+      syncSeed: null,
+      spinDurationMs: 30000,
       spinPhase: "idle",
     };
   },
@@ -128,17 +150,20 @@ export default {
     resetWinnerReveal() {
       this.finsihed_spinning = false;
       this.spinWinner = null;
+      this.syncSeed = null;
     },
     /**
      * @param {object} winnerPlayer — winner from backend (shown at end of spin)
-     * @param _syncSeed — reserved
+     * @param {string} [syncSeed] — fairness bundle; same value ⇒ identical reel + RNG on all clients
      * @param _winningTicket — reserved
      * @param {number} [spinDurationMs] — animation length
      */
-    demoSpin(winnerPlayer, _syncSeed, _winningTicket, spinDurationMs) {
+    demoSpin(winnerPlayer, syncSeed, _winningTicket, spinDurationMs) {
       this.spinPhase = "idle";
       this.finsihed_spinning = false;
       this.spinWinner = winnerPlayer || null;
+      this.syncSeed =
+        syncSeed != null && String(syncSeed).length > 0 ? String(syncSeed) : null;
       if (spinDurationMs != null && Number.isFinite(Number(spinDurationMs))) {
         this.spinDurationMs = Math.max(1000, Number(spinDurationMs));
       }
@@ -168,10 +193,12 @@ export default {
       return item.avatar;
     },
 
-    unboxSpin(winnerPlayer) {
+    unboxSpin(winnerPlayer, syncSeed) {
       this.spinPhase = "idle";
       this.finsihed_spinning = false;
       this.spinWinner = winnerPlayer || null;
+      this.syncSeed =
+        syncSeed != null && String(syncSeed).length > 0 ? String(syncSeed) : null;
       let games = [];
 
       for (let i = 0; i < this.unboxCount; i++) {
@@ -190,16 +217,25 @@ export default {
       if (!Number.isFinite(c)) c = 0;
       return Math.max(0, Math.min(100, c));
     },
-    shuffleArray(arr) {
+    /** Fisher–Yates; `random01` must return [0, 1). Pass from makeRng for sync. */
+    shuffleArray(arr, random01 = Math.random) {
       const a = [...arr];
       for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = Math.floor(random01() * (i + 1));
         [a[i], a[j]] = [a[j], a[i]];
       }
       return a;
     },
+    /** When `syncSeed` is set, all clients get the same PRNG stream for `salt`. */
+    makeRng(syncSeed, salt) {
+      if (syncSeed == null || String(syncSeed).length === 0) {
+        return Math.random;
+      }
+      const seed = fnv1a32(String(syncSeed) + "\0" + salt);
+      return mulberry32(seed);
+    },
     /** Each player's avatar count ≈ their chance % of `reelSlots` (no ticket ranges). */
-    buildChanceWeightedReel(players, reelSlots) {
+    buildChanceWeightedReel(players, reelSlots, random01 = Math.random) {
       const list = Array.isArray(players) ? players.filter(Boolean) : [];
       const placeholder = {
         name: "—",
@@ -221,7 +257,7 @@ export default {
           const n = per + (rem-- > 0 ? 1 : 0);
           for (let j = 0; j < n; j++) out.push(list[i]);
         }
-        return this.shuffleArray(out);
+        return this.shuffleArray(out, random01);
       }
 
       const raw = chances.map((c) => (c / sum) * reelSlots);
@@ -229,7 +265,8 @@ export default {
       let allocated = floors.reduce((a, b) => a + b, 0);
       let rem = reelSlots - allocated;
       const fracs = raw.map((r, i) => ({ i, f: r - Math.floor(r) }));
-      fracs.sort((a, b) => b.f - a.f);
+      // Tie-break by index so sort order is identical in every JS engine
+      fracs.sort((a, b) => b.f - a.f || a.i - b.i);
       const counts = [...floors];
       for (let k = 0; k < rem; k++) counts[fracs[k].i]++;
 
@@ -239,7 +276,7 @@ export default {
       }
       while (out.length > reelSlots) out.pop();
       while (out.length < reelSlots) out.push(list[0]);
-      return this.shuffleArray(out);
+      return this.shuffleArray(out, random01);
     },
     unboxGetReelsPos() {
       const spinner = this.$refs["unbox-spinner"].getBoundingClientRect();
@@ -268,18 +305,17 @@ export default {
   },
   computed: {
     unboxGetItems() {
-      return this.buildChanceWeightedReel(this.caseContent, 150);
+      const rng = this.makeRng(this.syncSeed, "chance-reel");
+      return this.buildChanceWeightedReel(this.caseContent, 150, rng);
     },
   },
   watch: {
     unboxGames: {
-      deep: true,
       handler(data, dataOld) {
         if (this.unboxGames.length >= 1) {
           this.finsihed_spinning = false;
-          if (dataOld.length !== 0) {
-            this.unboxAddReels();
-          }
+          // Always rebuild so first spin uses syncSeed (created() ran before seed existed).
+          this.unboxAddReels();
           this.unboxGetReelsPos();
 
           for (const [index, game] of this.unboxGames.entries()) {
@@ -300,8 +336,9 @@ export default {
             const currentCenterIndex = this.unboxReelsPos;
             const minIndex = Math.floor(reelItems * 0.85);
             const maxIndex = Math.floor(reelItems * 0.95);
+            const rngSlot = this.makeRng(this.syncSeed, "winner-slot");
             var winnerIndex =
-              Math.floor(Math.random() * (maxIndex - minIndex + 1)) + minIndex;
+              Math.floor(rngSlot() * (maxIndex - minIndex + 1)) + minIndex;
             const baseIndexShift =
               (winnerIndex - currentCenterIndex + reelItems) % reelItems;
 
@@ -313,7 +350,7 @@ export default {
             this.displayCenterIndex = currentCenterIndex;
             this.winner = resolved || this.unboxReels[index + 1][winnerIndex];
 
-            const TOTAL_SPIN_MS = 20000;
+            const TOTAL_SPIN_MS = this.spinDurationMs;
             const ITEM_WIDTH = 70;
             const START_X = 2525;
             const LOOPS = 0;
