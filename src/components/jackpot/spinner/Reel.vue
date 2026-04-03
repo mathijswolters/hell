@@ -1,21 +1,18 @@
 <template>
   <div
     class="unbox-reel"
-    :class="{
-      'reel--spinning': spinPhase === 'spinning',
-      'reel--finished': spinPhase === 'finished'
-    }"
+    :class="{ 'unbox-reel--stopped': spinPhase === 'finished' }"
   >
     <div
       v-for="(item, index) in reel"
-      :key="index"
+      v-bind:key="index"
       class="reel-element"
-      :class="[
+      v-bind:class="[
         {
-          'reel-element--center': isCenterSlot(index),
           'element-active': index === pos && spinPhase === 'finished',
-          'final-item': spinPhase === 'finished' && index === pos
-        }
+          'final-item': spinPhase === 'finished' && index === pos,
+          'element-active-center': spinPhase === 'spinning' && index === pos,
+        },
       ]"
     >
       <div class="spin-slot-card-image">
@@ -23,8 +20,8 @@
           <div class="backImg">
             <div class="backImg2">
               <div
-                class="reel-face w-[60px] h-[60px] bg-no-repeat bg-center bg-cover"
-                :class="isCenterSlot(index) ? 'reel-face--color' : 'reel-face--bw'"
+                class="w-[60px] h-[60px] bg-no-repeat bg-center bg-cover"
+                :class="{ 'reel-element-winner-thumb': spinPhase === 'finished' && index === pos }"
                 :style="{ backgroundImage: `url(${getAvatar(item)}), url('/img/fallback.png')`, backgroundColor: '#0b0b0b' }"
               ></div>
             </div>
@@ -36,35 +33,52 @@
 </template>
 
 <script>
-import { normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
-
 export default {
-  name: 'UnboxReel',
-  props: ['reel', 'pos', 'running', 'spinPhase'],
+  name: "UnboxReel",
+  components: {},
+  props: ["reel", "pos", "running", "spinPhase"],
+  watch: {
+    spinPhase(newVal, oldVal) {
+      console.log("spinPhase changed:", oldVal, "→", newVal)
+    }
+  },
   methods: {
-    /** Slot under the pointer: full colour + zoom; all others B/W. */
-    isCenterSlot(index) {
-      const at = Number(this.pos)
-      const idx = Number(index)
-      if (Number.isNaN(at) || Number.isNaN(idx) || at !== idx) return false
-      return this.spinPhase === 'spinning' || this.spinPhase === 'finished'
+    unboxFormatValue(value) {
+      return parseFloat(Math.floor(value / 10) / 100)
+        .toFixed(2)
+        .toString()
+        .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    },
+    formatNumber(number) {
+      const parts = number.toFixed(2).toString().split(".");
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      return `${parts[0]}<span v-if="hasDecimal(number)" class="decimal">.${parts[1]}</span>`;
     },
     getAvatar(item) {
-      if (!item || typeof item !== 'object') return '/img/fallback.png'
-      const raw = item.avatar ?? item.image ?? item.url ?? ''
-      const s = String(raw).trim()
-      if (!s) return '/img/fallback.png'
-      if (/^https?:\/\//i.test(s)) return s
-      if (s.startsWith('//')) return `https:${s}`
-      if (s.startsWith('/')) return s
-      const n = normalizeSteamEconomyImageUrl(s)
-      return n || '/img/fallback.png'
-    }
-  }
-}
+      // CASE 1 — missing avatar
+      if (!item || !item.avatar) {
+        return "/img/fallback.png";
+      }
+
+      // CASE 2 — invalid URL (missing protocol, typo)
+      try {
+        new URL(item.avatar, window.location.origin); // validate
+      } catch (e) {
+        return "/img/fallback.png";
+      }
+
+      // CASE 3 — valid image
+      return item.avatar;
+    },
+  },
+};
 </script>
 
 <style scoped>
+
+.reel-element-winner-thumb {
+  border: 2px solid #d6d5d4;
+}
 .element-center {
   transform: scale(1.05);
   border: 2px solid #fff;
@@ -75,14 +89,11 @@ export default {
   height: 100%;
   display: flex;
   align-items: center;
-  flex-shrink: 0;
-  width: max-content;
-  min-width: min-content;
   /* margin-left: 40px; */
   will-change: transform;
 } 
 
-/* Scale on wrapper; grayscale only on .reel-face so transform stays crisp */
+/* Default (non-focused) items on the reel */
 .unbox-reel .reel-element {
   width: 60px;
   height: 60px;
@@ -91,27 +102,11 @@ export default {
   justify-content: center;
   align-items: center;
   margin-right: 10px;
-  opacity: 1;
-  transform: scale(0.88);
-  transform-origin: center center;
-  transition: transform 0.15s ease, opacity 0.15s ease;
-}
-
-.unbox-reel.reel--spinning .reel-element {
-  transition: none !important;
-}
-
-/* Slot aligned with viewport centre: zoom in + colour (see .reel-face--color) */
-.unbox-reel .reel-element--center {
-  transform: scale(1.2);
-  z-index: 5;
-  border: 2px solid #cfb7b7;
-  border-radius: 4px;
-  box-sizing: border-box;
-}
-
-.unbox-reel.reel--spinning .reel-element--center {
-  transform: scale(1.28);
+  /* softer “disabled” effect so they stay visible */
+  opacity: 0.25; /* was 0.25  */
+  filter: grayscale(80%); /* removed blur + less grey */
+  transform: scale(0.95); /* was 0.85  */
+  transition: all 0.25s ease;
 }
 
 .unbox-reel .reel-element:last-child {
@@ -119,45 +114,53 @@ export default {
   margin-bottom: 0;
 }
 
-.reel-face {
-  border-radius: 2px;
-  transform-origin: center center;
-}
-
-.unbox-reel.reel--finished .reel-face {
-  transition: filter 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.reel-face--bw {
-  filter: grayscale(100%);
-}
-
-.reel-face--color {
-  filter: none;
-}
-
+/* Focused centre item */
 .unbox-reel .reel-element.element-active {
   opacity: 1 !important;
-  transform: scale(1.36) !important;
-  z-index: 6;
-  transition:
-    filter 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    transform 0.48s cubic-bezier(0.2, 0.85, 0.25, 1);
-}
-
-.unbox-reel .reel-element.element-active .reel-face {
   filter: none !important;
+  transform: scale(1.3);
+  z-index: 5;
+  transition: all 0.2s ease; /* quick transition for sliding */
 }
 
-.unbox-reel .reel-element.final-item.element-active {
-  transform: scale(1.42) !important;
-  transition: transform 0.52s cubic-bezier(0.2, 0.85, 0.25, 1);
+/* Center item highlight while spinning */
+.unbox-reel .reel-element.element-active-center {
+  opacity: 1 !important;
+  filter: none !important;
+  transform: scale(1.3); /* matches element-active */
+  z-index: 5;
+  border: 2px solid #cfb7b7; /* sliding highlighter border */
+  transition: all 0.2s ease; /* quick transition for sliding */
+}
+
+/* Extra punch when the spin is finished */
+.unbox-reel .reel-element.final-item {
+  transform: scale(1.5);
+  transition: transform 0.2s ease-in-out;
 }
 
 .unbox-reel .reel-element.element-active .spin-slot-card-image {
   /* box-shadow: 0 0 18px rgba(255, 255, 255, 0.9); */
   border-radius: 0px;
   border: 2px solid #cfb7b7;
+}
+
+/* Reel only (not the post-spin winner text row): when stopped, recess non-winners */
+.unbox-reel.unbox-reel--stopped .reel-element:not(.final-item) {
+  opacity: 0.14;
+  filter: grayscale(85%) brightness(0.45);
+}
+
+/* Reel only: light frame on the winning thumbnail after spin (inner 60×60) */
+.unbox-reel.unbox-reel--stopped .reel-element.final-item .backImg2 > div {
+  box-sizing: border-box;
+  border: 2px solid #d6d5d4;
+  border-radius: 4px;
+}
+
+/* Avoid double frame: outer card border is for spinning; stopped uses inner thumb border only */
+.unbox-reel.unbox-reel--stopped .reel-element.element-active .spin-slot-card-image {
+  border: none;
 }
 
 .unbox-reel .element-image {

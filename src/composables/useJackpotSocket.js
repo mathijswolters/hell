@@ -58,7 +58,6 @@ export function useJackpotSocket({
     })
 
     socket.on('jackpot:startTimer', ({ start, end, send }) => {
-      console.log('=============startTimer=============', { start, end, send })
       onStartTimer?.({ start, end, send })
     })
 
