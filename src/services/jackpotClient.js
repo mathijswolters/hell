@@ -374,4 +374,59 @@ export function emitJackpotDeposit(socket, { potid, steamid, skins }) {
   return true
 }
 
+/**
+ * Trade URL from `jackpot:roll` payload (shape varies by backend).
+ */
+export function tradeOfferUrlFromJackpotRollPayload(payload) {
+  if (!payload || typeof payload !== 'object') return ''
+  const w = payload.winner_data || payload.winner || {}
+  const candidates = [
+    payload.trade_offer_url,
+    payload.tradeOfferUrl,
+    payload.trade_url,
+    payload.steam_trade_url,
+    payload.offer_url,
+    payload.offerUrl,
+    w.trade_offer_url,
+    w.tradeOfferUrl,
+    w.trade_url,
+    w.offer_url,
+    w.steam_trade_url
+  ]
+  for (const c of candidates) {
+    const s = typeof c === 'string' ? c.trim() : ''
+    if (/^https?:\/\//i.test(s)) return s
+  }
+  const id =
+    payload.tradeofferid ??
+    payload.trade_offer_id ??
+    payload.tradeOfferId ??
+    w.tradeofferid ??
+    w.trade_offer_id
+  if (id != null && String(id).trim() !== '') {
+    const n = String(id).replace(/\D/g, '')
+    if (n) return `https://steamcommunity.com/tradeoffer/${n}/`
+  }
+  return ''
+}
+
+/**
+ * Flatten all deposited items in the round for the winner popup grid.
+ */
+export function potItemsFlattenedForDisplay(players) {
+  const out = []
+  for (const p of Array.isArray(players) ? players : []) {
+    const items = sourcePlayerItems(p)
+    for (const raw of items) {
+      const it = normalizeItem(raw)
+      out.push({
+        name: it.name,
+        image: it.image || '/img/user/userImage.png',
+        price: it.price
+      })
+    }
+  }
+  return out
+}
+
 export { normalizeHistoryEntry, normalizePlayer, normalizeRound, toNumber }

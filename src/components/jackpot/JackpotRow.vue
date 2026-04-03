@@ -1,55 +1,39 @@
 <template>
   <div class="flex items-center flex-col justify-center gap-y-3">
     <div class="w-full justify-center relative flex flex-wrap items-center">
-      <div class="flex items-center gap-x-2 min-w-0">
+    <div class="flex items-center gap-x-2">
         <div
-          class="w-[40px] h-[40px] rounded-[4px] bg-no-repeat bg-center bg-cover shrink-0"
+          class="w-[40px] h-[40px] rounded-[4px] bg-no-repeat bg-center bg-cover"
           :style="{
             backgroundImage: `url(${user?.avatar ?? '/img/user/userImage.png'})`
           }"
         ></div>
-        <div class="min-w-0 flex flex-col gap-0.5">
-          <span class="text-white font-Rubik text-xl font-bold truncate">{{ user.name }}</span>
-          <span
-            v-if="depositItem"
-            class="text-[#d7b7b7] font-Rubik text-xs font-semibold truncate max-w-[min(100%,280px)]"
-            :title="depositItem.name"
-            >{{ depositItem.name }}</span
-          >
-          <span class="text-white font-Rubik text-sm font-bold">
-            ${{
-              Number(displayDollarValue).toLocaleString(undefined, {
-                maximumFractionDigits: 2,
-                minimumFractionDigits: 2
-              })
-            }}
-            |
-            {{
-              chancePercentForPie.toLocaleString(undefined, {
-                maximumFractionDigits: 2,
-                minimumFractionDigits: 0
-              })
-            }}%
-            <template v-if="showCumulativeRangeLabel">
-              &nbsp;&nbsp;
-              <span class="text-white/75 font-semibold text-xs sm:text-sm tabular-nums">
-                {{ displayRangeLow.toFixed(2) }}% – {{ displayRangeHigh.toFixed(2) }}%
-              </span>
-            </template>
-          </span>
-        </div>
-      </div>
-      <div
-        class="flex items-center gap-x-3 justify-center w-full sm:w-fit md:justify-end md:absolute right-2"
-      >
-        <span class="text-white font-Rubik text-sm font-bold opacity-70 shrink-0 tabular-nums">
+        <span class="text-white font-Rubik text-xl font-bold">{{ user.name }} </span>
+        <span class="text-white font-Rubik text-sm font-bold mt-1">
+          ${{
+            Number(user.value).toLocaleString(undefined, {
+              maximumFractionDigits: 2,
+              minimumFractionDigits: 2
+            })
+          }}
+          |
           {{
             chancePercentForPie.toLocaleString(undefined, {
               maximumFractionDigits: 2,
               minimumFractionDigits: 0
             })
-          }}%
-        </span>
+          }}%</span
+        >
+      </div>
+      <div
+        class="flex items-center gap-x-3 justify-center w-full sm:w-fit md:justify-end md:absolute right-2"
+      >
+        <template v-if="showCumulativeRangeLabel">
+            &nbsp;&nbsp;
+            <span class="text-white/75 font-semibold text-xs sm:text-sm tabular-nums">
+              {{ displayRangeLow.toFixed(2) }}% – {{ displayRangeHigh.toFixed(2) }}%
+            </span>
+          </template>
         <svg
           viewBox="-1 -1 2 2"
           xmlns="http://www.w3.org/2000/svg"

@@ -1,20 +1,31 @@
 <template>
-  <div class="unbox-reel">
+  <div
+    class="unbox-reel"
+    :class="{
+      'reel--spinning': spinPhase === 'spinning',
+      'reel--finished': spinPhase === 'finished'
+    }"
+  >
     <div
       v-for="(item, index) in reel"
-      v-bind:key="index"
+      :key="index"
       class="reel-element"
-      v-bind:class="[{ 'element-active': index === pos, 'final-item': !running && index === pos }]"
+      :class="[
+        {
+          'reel-element--center': isCenterSlot(index),
+          'element-active': index === pos && spinPhase === 'finished',
+          'final-item': spinPhase === 'finished' && index === pos
+        }
+      ]"
     >
       <div class="spin-slot-card-image">
         <div class="backk">
           <div class="backImg">
             <div class="backImg2">
               <div
-                class="w-[60px] h-[60px] rounded-sm bg-no-repeat bg-center bg-cover"
-                :style="{
-                  backgroundImage: `url(${item?.avatar ?? item?.image ?? item?.url ?? '/img/user/userImage.png'})`
-                }"
+                class="reel-face w-[60px] h-[60px] bg-no-repeat bg-center bg-cover"
+                :class="isCenterSlot(index) ? 'reel-face--color' : 'reel-face--bw'"
+                :style="{ backgroundImage: `url(${getAvatar(item)}), url('/img/fallback.png')`, backgroundColor: '#0b0b0b' }"
               ></div>
             </div>
           </div>
@@ -25,35 +36,53 @@
 </template>
 
 <script>
+import { normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
+
 export default {
   name: 'UnboxReel',
-  components: {},
-  props: ['reel', 'pos', 'running'],
+  props: ['reel', 'pos', 'running', 'spinPhase'],
   methods: {
-    unboxFormatValue(value) {
-      return parseFloat(Math.floor(value / 10) / 100)
-        .toFixed(2)
-        .toString()
-        .replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+    /** Slot under the pointer: full colour + zoom; all others B/W. */
+    isCenterSlot(index) {
+      const at = Number(this.pos)
+      const idx = Number(index)
+      if (Number.isNaN(at) || Number.isNaN(idx) || at !== idx) return false
+      return this.spinPhase === 'spinning' || this.spinPhase === 'finished'
     },
-    formatNumber(number) {
-      const parts = number.toFixed(2).toString().split('.')
-      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-      return `${parts[0]}<span v-if="hasDecimal(number)" class="decimal">.${parts[1]}</span>`
+    getAvatar(item) {
+      if (!item || typeof item !== 'object') return '/img/fallback.png'
+      const raw = item.avatar ?? item.image ?? item.url ?? ''
+      const s = String(raw).trim()
+      if (!s) return '/img/fallback.png'
+      if (/^https?:\/\//i.test(s)) return s
+      if (s.startsWith('//')) return `https:${s}`
+      if (s.startsWith('/')) return s
+      const n = normalizeSteamEconomyImageUrl(s)
+      return n || '/img/fallback.png'
     }
   }
 }
 </script>
 
 <style scoped>
+.element-center {
+  transform: scale(1.05);
+  border: 2px solid #fff;
+  transition: transform 0.1s ease;
+}
+
 .unbox-reel {
   height: 100%;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+  width: max-content;
+  min-width: min-content;
   /* margin-left: 40px; */
-  margin-right: 60px;
-}
+  will-change: transform;
+} 
 
+/* Scale on wrapper; grayscale only on .reel-face so transform stays crisp */
 .unbox-reel .reel-element {
   width: 60px;
   height: 60px;
@@ -63,6 +92,26 @@ export default {
   align-items: center;
   margin-right: 10px;
   opacity: 1;
+  transform: scale(0.88);
+  transform-origin: center center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.unbox-reel.reel--spinning .reel-element {
+  transition: none !important;
+}
+
+/* Slot aligned with viewport centre: zoom in + colour (see .reel-face--color) */
+.unbox-reel .reel-element--center {
+  transform: scale(1.2);
+  z-index: 5;
+  border: 2px solid #cfb7b7;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.unbox-reel.reel--spinning .reel-element--center {
+  transform: scale(1.28);
 }
 
 .unbox-reel .reel-element:last-child {
@@ -70,13 +119,47 @@ export default {
   margin-bottom: 0;
 }
 
+.reel-face {
+  border-radius: 2px;
+  transform-origin: center center;
+}
+
+.unbox-reel.reel--finished .reel-face {
+  transition: filter 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.reel-face--bw {
+  filter: grayscale(100%);
+}
+
+.reel-face--color {
+  filter: none;
+}
+
 .unbox-reel .reel-element.element-active {
-  opacity: 1;
+  opacity: 1 !important;
+  transform: scale(1.36) !important;
+  z-index: 6;
+  transition:
+    filter 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    transform 0.48s cubic-bezier(0.2, 0.85, 0.25, 1);
 }
-.unbox-reel .reel-element.final-item {
-  transform: scale(1.2);
-  transition: transform ease-in-out 0.2s;
+
+.unbox-reel .reel-element.element-active .reel-face {
+  filter: none !important;
 }
+
+.unbox-reel .reel-element.final-item.element-active {
+  transform: scale(1.42) !important;
+  transition: transform 0.52s cubic-bezier(0.2, 0.85, 0.25, 1);
+}
+
+.unbox-reel .reel-element.element-active .spin-slot-card-image {
+  /* box-shadow: 0 0 18px rgba(255, 255, 255, 0.9); */
+  border-radius: 0px;
+  border: 2px solid #cfb7b7;
+}
+
 .unbox-reel .element-image {
   width: 60px;
   height: 60px;
@@ -100,7 +183,7 @@ export default {
 }
 
 .unbox-reel .reel-element.element-active .element-image img {
-  transform: translate(-50%, -40%) scale(1.2);
+  transform: translate(-50%, -40%) scale(1.5);
 }
 
 .unbox-reel .element-info {
@@ -155,7 +238,7 @@ export default {
     position: relative; /* Replaced relative */
     &::before,
     &::after {
-      content: '';
+      content: "";
       position: absolute; /* Replaced absolute */
     }
     &::before {
@@ -228,7 +311,7 @@ export default {
               position: relative; /* Replaced relative */
               &::before,
               &::after {
-                content: '';
+                content: "";
                 z-index: -1;
                 position: absolute; /* Replaced absolute */
               }
@@ -337,7 +420,7 @@ export default {
         position: relative; /* Replaced relative */
         &::before,
         &::after {
-          content: '';
+          content: "";
           z-index: -1;
           position: absolute; /* Replaced absolute */
         }
