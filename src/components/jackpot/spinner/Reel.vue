@@ -37,11 +37,6 @@ export default {
   name: "UnboxReel",
   components: {},
   props: ["reel", "pos", "running", "spinPhase"],
-  watch: {
-    spinPhase(newVal, oldVal) {
-      console.log("spinPhase changed:", oldVal, "→", newVal)
-    }
-  },
   methods: {
     unboxFormatValue(value) {
       return parseFloat(Math.floor(value / 10) / 100)

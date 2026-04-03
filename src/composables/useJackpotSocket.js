@@ -62,6 +62,7 @@ export function useJackpotSocket({
     })
 
     socket.on('fairness:EOSBlock', ({ blockid }) => {
+      console.log('===============', blockid)
       onEOSBlock?.(blockid)
     })
 

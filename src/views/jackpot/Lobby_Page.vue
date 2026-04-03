@@ -203,7 +203,17 @@
           >
         </div>
       </div>
+      <p
+        v-if="showWaitingForBlockIrreversible"
+        class="w-full max-w-[907px] px-4 text-center font-Rubik text-xs sm:text-sm text-[#d7b7b7] leading-snug mt-1"
+      >
+        <template v-if="fairness.eos != null && String(fairness.eos).trim() !== ''">
+          Waiting for block {{ formatFairnessEos(fairness.eos) }} to be irreversible
+        </template>
+        <template v-else>Waiting for the EOS block to be irreversible</template>
+      </p>
       <span
+        v-if="hasJackpotFairnessFromRoll"
         class="flex flex-col items-center w-full max-w-full left-0 right-0 px-2 sm:px-4 text-center gap-0.5 top-[calc(100%+1rem)]"
       >
         <span class="font-Rubik font-medium text-sm text-[#FF4444]"
@@ -320,6 +330,12 @@ import {
 } from '@/services/jackpotClient'
 import { getSteamId } from '@/auth/session'
 import { useJackpotSocket } from '@/composables/useJackpotSocket'
+
+/** Reel easing duration — must match product expectation (Jackpot_Spinner `spinDurationMs`). */
+const JACKPOT_SPIN_DURATION_MS = 30000
+/** After spin ends: settle + winner reveal; keep rail visible until then */
+const JACKPOT_SPIN_RAIL_EXTRA_MS = 2500
+
 export default {
   name: 'Jackpot_Lobby',
 
@@ -407,6 +423,25 @@ export default {
       if (this.jackpotSpinDone) return true
       if (this.serverRoundEndMs != null && this.nowMs() >= this.serverRoundEndMs) return true
       return false
+    },
+    /**
+     * Betting window ended, still waiting on chain — show EOS finality message.
+     * Hide as soon as `jackpot:roll` data exists (same moment as ticket/hash row appears).
+     */
+    showWaitingForBlockIrreversible() {
+      if (this.hasJackpotFairnessFromRoll) return false
+      if (!this.hasAtLeastTwoDistinctSteamPlayers) return false
+      if (this.serverRoundEndMs == null || this.jackpotSpinDone) return false
+      void this.secondsLeft
+      return this.nowMs() >= this.serverRoundEndMs
+    },
+    /** Provably-fair line (ticket / hash / EOS) only after `jackpot:roll` sends real values. */
+    hasJackpotFairnessFromRoll() {
+      const t = this.fairness?.ticket
+      const h = this.fairness?.hash
+      const ticketOk = t != null && String(t).trim() !== ''
+      const hashOk = h != null && String(h).trim() !== ''
+      return ticketOk && hashOk
     },
     /** Ring + label: no backend end time yet → empty ring. */
     displayTimerValue() {
@@ -570,19 +605,21 @@ export default {
       this.jackpotWinnerRevealVisible = false
       this.jackpotSpinnerRailAllowed = true
       if (!this.game.players?.length) return
-      const expectedRevealMs =
-        this.serverRoundEndMs != null ? this.serverRoundEndMs + 5000 : this.nowMs() + 5000
-      const spinDurationMs = Math.max(5000, expectedRevealMs - this.nowMs() - 600)
-      this.spinVisibleUntilMs = expectedRevealMs
+      this.spinVisibleUntilMs = this.nowMs() + JACKPOT_SPIN_DURATION_MS + JACKPOT_SPIN_RAIL_EXTRA_MS
       this.$nextTick(() => {
         if (!this.$refs.spinner) return
         this.jackpotSpinDone = true
-        this.$refs.spinner.demoSpin(this.game.players[0], undefined, undefined, spinDurationMs)
+        this.$refs.spinner.demoSpin(
+          this.game.players[0],
+          undefined,
+          undefined,
+          JACKPOT_SPIN_DURATION_MS
+        )
       })
     },
     isWinnerCurrentUser(winner) {
-      const sid = '76561197984485194'
-      // const sid = getSteamId()
+      // const sid = '76561197984485194'
+      const sid = getSteamId()
       if (!sid || !winner?.steamid) return false
       return String(winner.steamid) === String(sid)
     },
@@ -620,16 +657,13 @@ export default {
         String(this.fairness.ticket ?? '').replace(/[^\d.-]/g, ''),
         NaN
       )
-      const expectedRevealMs =
-        this.serverRoundEndMs != null ? this.serverRoundEndMs + 5000 : this.nowMs() + 5000
-      const spinDurationMs = Math.max(5000, expectedRevealMs - this.nowMs() - 600)
-      this.spinVisibleUntilMs = expectedRevealMs
+      this.spinVisibleUntilMs = this.nowMs() + JACKPOT_SPIN_DURATION_MS + JACKPOT_SPIN_RAIL_EXTRA_MS
       this.$nextTick(() => {
         this.$refs.spinner?.demoSpin(
           target,
           syncSeed || undefined,
           Number.isFinite(winningTicket) ? winningTicket : undefined,
-          spinDurationMs
+          JACKPOT_SPIN_DURATION_MS
         )
       })
     },
