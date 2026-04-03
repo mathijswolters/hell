@@ -232,6 +232,7 @@
         }"
       >
         <Spinner
+          v-if="showJackpotSpinnerRail"
           ref="spinner"
           :pot_value="pot_value"
           :case-content="game.players"
@@ -298,7 +299,7 @@
 <script>
 import 'vue3-circle-progress/dist/circle-progress.css'
 import { CircleProgressBar } from 'circle-progress.vue'
-import { openModal, closeModal, modalState } from '@/modalStore'
+import { openModal } from '@/modalStore'
 import { Cog8ToothIcon } from '@heroicons/vue/24/solid'
 import Row from '../../components/jackpot/JackpotRow.vue'
 import Spinner from '../../components/jackpot/spinner/Jackpot_Spinner.vue'
@@ -377,7 +378,13 @@ export default {
        */
       suppressJackpotSpinnerRailAfterReveal: false,
       /** After `@complete`, keep the spinner rail expanded so winner text stays visible until `resetFairnessForNewRound`. */
-      jackpotWinnerRevealVisible: false
+      jackpotWinnerRevealVisible: false,
+      /**
+       * REST often returns start/end with `end` already in the past after a refresh, which made
+       * `byEnd` true immediately and showed an empty/stale spinner. Keep the rail hidden until a
+       * live betting window (`now < end`), socket `jackpot:startTimer`, or a roll-driven spin.
+       */
+      jackpotSpinnerRailAllowed: false
     }
   },
   created() {},
@@ -416,6 +423,7 @@ export default {
       if (!this.hasAtLeastTwoDistinctSteamPlayers) return false
       if (this.jackpotWinnerRevealVisible) return true
       if (this.suppressJackpotSpinnerRailAfterReveal) return false
+      if (!this.jackpotSpinnerRailAllowed) return false
       const now = this.nowMs()
       const byEnd = this.serverRoundEndMs != null && now >= this.serverRoundEndMs
       const byAnimation =
@@ -560,14 +568,17 @@ export default {
       this.isRolling = true
       this.suppressJackpotSpinnerRailAfterReveal = false
       this.jackpotWinnerRevealVisible = false
-      if (this.$refs.spinner && this.game.players?.length) {
+      this.jackpotSpinnerRailAllowed = true
+      if (!this.game.players?.length) return
+      const expectedRevealMs =
+        this.serverRoundEndMs != null ? this.serverRoundEndMs + 5000 : this.nowMs() + 5000
+      const spinDurationMs = Math.max(5000, expectedRevealMs - this.nowMs() - 600)
+      this.spinVisibleUntilMs = expectedRevealMs
+      this.$nextTick(() => {
+        if (!this.$refs.spinner) return
         this.jackpotSpinDone = true
-        const expectedRevealMs =
-          this.serverRoundEndMs != null ? this.serverRoundEndMs + 5000 : this.nowMs() + 5000
-        const spinDurationMs = Math.max(5000, expectedRevealMs - this.nowMs() - 600)
-        this.spinVisibleUntilMs = expectedRevealMs
         this.$refs.spinner.demoSpin(this.game.players[0], undefined, undefined, spinDurationMs)
-      }
+      })
     },
     isWinnerCurrentUser(winner) {
       const sid = '76561197984485194'
@@ -599,6 +610,7 @@ export default {
       if (!target) return
 
       this.suppressJackpotSpinnerRailAfterReveal = false
+      this.jackpotSpinnerRailAllowed = true
       this.jackpotWinnerRevealVisible = false
       this.jackpotSpinDone = true
       const syncSeed = [this.fairness.ticket, this.fairness.hash, this.game?._id]
@@ -718,9 +730,19 @@ export default {
       this.serverRoundStartMs = startMs
       this.serverRoundEndMs = endMs
       this.timerTotalSeconds = Math.max(1, Math.ceil((endMs - startMs) / 1000))
+      const now = this.nowMs()
       // New round with betting still open — allow spinner rail again when this round's end passes.
-      if (this.nowMs() < endMs) {
+      if (now < endMs) {
         this.suppressJackpotSpinnerRailAfterReveal = false
+        this.jackpotSpinnerRailAllowed = true
+      } else {
+        const inSpinWindow =
+          this.spinVisibleUntilMs != null && now <= this.spinVisibleUntilMs
+        if (inSpinWindow) {
+          this.jackpotSpinnerRailAllowed = true
+        } else if (!this.jackpotWinnerRevealVisible) {
+          this.jackpotSpinnerRailAllowed = false
+        }
       }
       // Round is closing (server state, past end time, or spin): do not run the countdown interval.
       if (this.isRoundEndingPhase) {
@@ -906,9 +928,6 @@ export default {
             this.pendingWinnerTradeUrl = ''
             this.lastJackpotWinnerModalSig = ''
             this.suppressJackpotSpinnerRailAfterReveal = false
-            if (modalState.modalType === 'jackpot winner choice') {
-              closeModal()
-            }
             this.resetFairnessForNewRound()
             this.applyServerTimer(start, end)
           }

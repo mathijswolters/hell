@@ -69,7 +69,10 @@ function toNum(v, fallback = 0) {
   return Number.isFinite(n) ? n : fallback
 }
 
-const ITEM_WIDTH = 70
+/** Matches Reel.vue: `.reel-element` width + margin-right (last child has margin 0 but spacing between indices is still this step). */
+const SLOT_STEP = 70
+/** Half of the 60px reel card — center of the face, not SLOT_STEP/2 (that was off by 5px and skewed the winner). */
+const SLOT_FACE_HALF = 30
 const STRIP_LEN = 150
 const WINNER_SLOT_INDEX = 135
 const START_X = 2525
@@ -202,6 +205,7 @@ export default {
     },
     /**
      * Place slot `slotIndex` (tile center) under the wheel viewport center (winner in the middle).
+     * Uses the real DOM node when possible so scale transforms on `.reel-element` match what the user sees.
      */
     alignStripIndexToWheelCenter(stripEl, wheelEl, slotIndex, xGuess) {
       if (!stripEl || !wheelEl) return xGuess
@@ -209,10 +213,17 @@ export default {
       stripEl.style.transition = 'none'
       for (let iter = 0; iter < 12; iter++) {
         stripEl.style.transform = `translate3d(${x}px,0,0)`
-        const sr = stripEl.getBoundingClientRect()
         const wr = wheelEl.getBoundingClientRect()
         const wheelCx = (wr.left + wr.right) / 2
-        const slotCx = sr.left + slotIndex * ITEM_WIDTH + ITEM_WIDTH / 2
+        const child = stripEl.children[slotIndex]
+        let slotCx
+        if (child && typeof child.getBoundingClientRect === 'function') {
+          const cr = child.getBoundingClientRect()
+          slotCx = (cr.left + cr.right) / 2
+        } else {
+          const sr = stripEl.getBoundingClientRect()
+          slotCx = sr.left + slotIndex * SLOT_STEP + SLOT_FACE_HALF
+        }
         const err = wheelCx - slotCx
         if (Math.abs(err) < 0.4) break
         x += err
@@ -446,8 +457,8 @@ export default {
           const TOTAL_SPIN_MS = this.spinDurationMs
           /** Full motion (including slow end) runs in RAF so avatars never stop until this elapses. */
           const RAF_TOTAL_MS = TOTAL_SPIN_MS + SETTLE_TRANSITION_MS
-          const totalDistance = baseIndexShift * ITEM_WIDTH
-          let finalX = START_X - winnerIndex * ITEM_WIDTH
+          const totalDistance = baseIndexShift * SLOT_STEP
+          let finalX = START_X - winnerIndex * SLOT_STEP
 
           this.stripTransformViaRaf = true
           this.unboxReelStyle = {
@@ -485,10 +496,10 @@ export default {
                 const wheelRect = wheelEl.getBoundingClientRect()
                 const stripLeftInWheel = stripRect.left - wheelRect.left
                 const cx = wheelEl.clientWidth / 2
-                const idx = Math.round((cx - stripLeftInWheel - ITEM_WIDTH / 2) / ITEM_WIDTH)
+                const idx = Math.round((cx - stripLeftInWheel - SLOT_FACE_HALF) / SLOT_STEP)
                 centerIndex = ((idx % reelItems) + reelItems) % reelItems
               } else {
-                const steps = Math.floor(distanceTraveled / ITEM_WIDTH)
+                const steps = Math.floor(distanceTraveled / SLOT_STEP)
                 centerIndex = (currentCenterIndex + steps) % reelArr.length
               }
               if (centerIndex !== this.unboxReelsPos) {
@@ -497,7 +508,7 @@ export default {
 
               if (progress >= 1) {
                 this.animationFrameId = null
-                let settleX = START_X - winnerIndex * ITEM_WIDTH
+                let settleX = START_X - winnerIndex * SLOT_STEP
                 const stripDone = this.getReelStripEl()
                 const wheelDone = stripDone?.parentElement
                 if (stripDone && wheelDone) {
