@@ -74,6 +74,7 @@ import KYC_verification from './modals/KYC/KYC_verification.vue'
 import Redeem_affiliate from './modals/free_coins/Redeem_affiliate.vue'
 import LoginModal from './modals/LoginModal.vue'
 import SteamOfferModal from './modals/SteamOfferModal.vue'
+import JackpotWinnerChoiceModal from './jackpot/JackpotWinnerChoiceModal.vue'
 
 export default {
   setup() {
@@ -143,6 +144,18 @@ export default {
             potId: data.potId ?? 1,
             loadInventory: data.loadInventory,
             deposit: data.deposit
+          }
+        },
+        'jackpot winner choice': {
+          component: JackpotWinnerChoiceModal,
+          props: {
+            tradeOfferUrl: data.tradeOfferUrl ?? '',
+            potValue: data.potValue ?? 0,
+            potId: data.potId ?? 1,
+            loadInventory: data.loadInventory,
+            deposit: data.deposit,
+            avatar: data.avatar ?? '/img/user/userImage.png',
+            items: Array.isArray(data.items) ? data.items : []
           }
         },
         freecoins: { component: FreeCoins },

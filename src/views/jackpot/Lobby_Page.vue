@@ -204,19 +204,23 @@
         </div>
       </div>
       <span
-        class="flex flex-col items-center w-full left-0 right-0 whitespace-nowrap top-[calc(100%+1rem)]"
+        class="flex flex-col items-center w-full max-w-full left-0 right-0 px-2 sm:px-4 text-center gap-0.5 top-[calc(100%+1rem)]"
       >
         <span class="font-Rubik font-medium text-sm text-[#FF4444]"
-          >Ticket: {{ fairness.ticket || '-' }}</span
+          >Ticket: {{ formatFairnessTicket(fairness.ticket) }}</span
         >
+        <span
+          class="font-Rubik font-medium text-xs sm:text-sm text-[#d7b7b7] font-mono break-all max-w-full"
+          :title="fairness.hash && String(fairness.hash).length > 28 ? fairness.hash : undefined"
+          >Hash: {{ formatFairnessLong(fairness.hash) }}</span
+        >
+        <!-- <span
+          class="font-Rubik font-medium text-xs sm:text-sm text-[#d7b7b7] font-mono break-all max-w-full"
+          :title="fairness.secret && String(fairness.secret).length > 28 ? fairness.secret : undefined"
+          >Secret: {{ formatFairnessLong(fairness.secret) }}</span
+        > -->
         <span class="font-Rubik font-medium text-sm text-[#d7b7b7]"
-          >Hash: {{ fairness.hash || '-' }}</span
-        >
-        <span class="font-Rubik font-medium text-sm text-[#d7b7b7]"
-          >Secret: {{ fairness.secret || '-' }}</span
-        >
-        <span class="font-Rubik font-semimediumbold text-sm text-[#d7b7b7]"
-          >EOS: {{ fairness.eos ? `#${fairness.eos}` : '-' }}</span
+          >EOS: {{ formatFairnessEos(fairness.eos) }}</span
         >
       </span>
 
@@ -228,6 +232,7 @@
         }"
       >
         <Spinner
+          v-if="showJackpotSpinnerRail"
           ref="spinner"
           :pot_value="pot_value"
           :case-content="game.players"
@@ -246,16 +251,7 @@
           class="min-h-[59px] flex w-full items-center justify-center sm:justify-between gap-2 px-4 py-4 sm:py-0 bg-[rgba(98,1,1,1)] flex-wrap"
         >
           <!-- Left Start -->
-          <div
-            class="font-Rubik font-bold text-base text-white whitespace-nowrap"
-            @click="
-              openModal('jackpot results', {
-                jackpot: game,
-                winner: game.players[0],
-                pot_value: pot_value
-              })
-            "
-          >
+          <div class="font-Rubik font-bold text-base text-white whitespace-nowrap">
             CURRENT ENTRIES {{ (game.players || []).length }}
           </div>
           <!-- Left End -->
@@ -286,9 +282,13 @@
         <!-- players -->
         <div class="flex flex-col gap-y-3 px-4">
           <Row
-            v-for="item in (game.players || []).slice().reverse()"
-            :key="item._id"
-            :user="item"
+            v-for="dep in jackpotDepositRowsDisplay"
+            :key="dep.key"
+            :user="dep.player"
+            :deposit-item="dep.item"
+            :range-low="dep.rangeLow"
+            :range-high="dep.rangeHigh"
+            :chance-pct="dep.chancePct"
             :pot_value="pot_value"
           />
         </div>
@@ -313,8 +313,10 @@ import {
   normalizeHistoryEntry,
   normalizePlayer,
   normalizeRound,
+  potItemsFlattenedForDisplay,
   serverTimestampToMs,
-  toNumber
+  toNumber,
+  tradeOfferUrlFromJackpotRollPayload
 } from '@/services/jackpotClient'
 import { getSteamId } from '@/auth/session'
 import { useJackpotSocket } from '@/composables/useJackpotSocket'
@@ -362,7 +364,27 @@ export default {
       /** Keep spinner visible through backend reveal moment even if next startTimer arrives. */
       spinVisibleUntilMs: null,
       /** `serverNowMs - Date.now()` so countdowns match backend clock (not local clock skew). */
-      serverTimeOffsetMs: 0
+      serverTimeOffsetMs: 0,
+      /** Dedupes duplicate `jackpot:roll` (same ticket/hash) or replays after refresh. */
+      lastJackpotRollSignature: '',
+      /** From latest `jackpot:roll` — Steam trade URL for the winner modal. */
+      pendingWinnerTradeUrl: '',
+      /** Dedupes opening the winner choice modal for the same roll. */
+      lastJackpotWinnerModalSig: '',
+      /**
+       * After the reel animation completes, `refreshRound` often reapplies `serverRoundEndMs`.
+       * If that `end` is still in the past, `byEnd` becomes true again and the spinner rail
+       * re-expands (looks like a "second" spinner). Suppress until a new betting phase or spin.
+       */
+      suppressJackpotSpinnerRailAfterReveal: false,
+      /** After `@complete`, keep the spinner rail expanded so winner text stays visible until `resetFairnessForNewRound`. */
+      jackpotWinnerRevealVisible: false,
+      /**
+       * REST often returns start/end with `end` already in the past after a refresh, which made
+       * `byEnd` true immediately and showed an empty/stale spinner. Keep the rail hidden until a
+       * live betting window (`now < end`), socket `jackpot:startTimer`, or a roll-driven spin.
+       */
+      jackpotSpinnerRailAllowed: false
     }
   },
   created() {},
@@ -399,6 +421,9 @@ export default {
     /** Spinner rail only after backend round end time has passed (timer driven by server `end`). */
     showJackpotSpinnerRail() {
       if (!this.hasAtLeastTwoDistinctSteamPlayers) return false
+      if (this.jackpotWinnerRevealVisible) return true
+      if (this.suppressJackpotSpinnerRailAfterReveal) return false
+      if (!this.jackpotSpinnerRailAllowed) return false
       const now = this.nowMs()
       const byEnd = this.serverRoundEndMs != null && now >= this.serverRoundEndMs
       const byAnimation =
@@ -424,6 +449,57 @@ export default {
         num += (Array.isArray(user?.items) ? user.items : []).length
       })
       return num
+    },
+    /**
+     * One row per deposit (offer/item): cumulative 0–100% wheel segments like history,
+     * in API player order, then item order within each player.
+     */
+    jackpotDepositRows() {
+      const players = Array.isArray(this.game?.players) ? this.game.players : []
+      const pot = this.pot_value
+      const rows = []
+      let acc = 0
+      for (const p of players) {
+        const items = Array.isArray(p.items) ? p.items : []
+        if (items.length === 0) {
+          let c = Number(p.chance)
+          if (!Number.isFinite(c)) c = 0
+          if (c > 0 && c <= 1) c *= 100
+          c = Math.min(100, Math.max(0, c))
+          const rangeLow = acc
+          const rangeHigh = Math.min(100, acc + c)
+          acc = rangeHigh
+          rows.push({
+            key: `p-${p._id ?? p.steamid}-solo`,
+            player: p,
+            item: null,
+            rangeLow,
+            rangeHigh,
+            chancePct: c
+          })
+          continue
+        }
+        items.forEach((it, idx) => {
+          const c = this.depositChanceForItem(it, p, pot)
+          const rangeLow = acc
+          const rangeHigh = Math.min(100, acc + c)
+          acc = rangeHigh
+          const oid = it.offerid ?? it.id ?? idx
+          rows.push({
+            key: `d-${p._id ?? p.steamid}-${oid}-${idx}`,
+            player: p,
+            item: it,
+            rangeLow,
+            rangeHigh,
+            chancePct: c
+          })
+        })
+      }
+      return rows
+    },
+    /** Newest / last deposits first (same as previous player reverse). */
+    jackpotDepositRowsDisplay() {
+      return [...this.jackpotDepositRows].reverse()
     }
   },
   methods: {
@@ -445,16 +521,70 @@ export default {
     updateScreenWidth() {
       this.screenWidth = window.innerWidth
     },
+    /** Chance % for one deposit: API `item.chance`, else value share of pot. */
+    depositChanceForItem(item, player, potValue) {
+      if (item && item.chance != null && Number.isFinite(Number(item.chance))) {
+        let c = Number(item.chance)
+        if (c > 0 && c <= 1) c *= 100
+        return Math.min(100, Math.max(0, c))
+      }
+      const price = toNumber(item?.price, 0)
+      const pv = toNumber(potValue, 0)
+      if (pv > 0 && price > 0) return Math.min(100, (price / pv) * 100)
+      return 0
+    },
+    /** Provably-fair line: readable number for ticket. */
+    formatFairnessTicket(raw) {
+      const s = raw == null ? '' : String(raw).trim()
+      if (!s) return '—'
+      const n = Number(s.replace(/[^\d.-]/g, ''))
+      if (Number.isFinite(n)) {
+        return n.toLocaleString(undefined, {
+          maximumFractionDigits: 14,
+          minimumFractionDigits: 0
+        })
+      }
+      return s
+    },
+    /** Long hex / secrets: compact on one line, full text still copy-friendly via title. */
+    formatFairnessLong(raw) {
+      const s = raw == null ? '' : String(raw).trim()
+      if (!s) return '—'
+      if (s.length <= 28) return s
+      return `${s.slice(0, 14)}…${s.slice(-12)}`
+    },
+    formatFairnessEos(raw) {
+      if (raw == null || String(raw).trim() === '') return '—'
+      const t = String(raw).trim()
+      return t.startsWith('#') ? t : `#${t}`
+    },
+    /** New betting round (socket): clear fairness and collapse winner rail for the next round. */
+    resetFairnessForNewRound() {
+      this.fairness = { ticket: '', hash: '', secret: '', eos: '' }
+      this.jackpotWinnerRevealVisible = false
+      this.$nextTick(() => this.$refs.spinner?.resetWinnerReveal?.())
+    },
     demoOpen() {
       this.isRolling = true
-      if (this.$refs.spinner && this.game.players?.length) {
+      this.suppressJackpotSpinnerRailAfterReveal = false
+      this.jackpotWinnerRevealVisible = false
+      this.jackpotSpinnerRailAllowed = true
+      if (!this.game.players?.length) return
+      const expectedRevealMs =
+        this.serverRoundEndMs != null ? this.serverRoundEndMs + 5000 : this.nowMs() + 5000
+      const spinDurationMs = Math.max(5000, expectedRevealMs - this.nowMs() - 600)
+      this.spinVisibleUntilMs = expectedRevealMs
+      this.$nextTick(() => {
+        if (!this.$refs.spinner) return
         this.jackpotSpinDone = true
-        const expectedRevealMs =
-          this.serverRoundEndMs != null ? this.serverRoundEndMs + 5000 : this.nowMs() + 5000
-        const spinDurationMs = Math.max(5000, expectedRevealMs - this.nowMs() - 600)
-        this.spinVisibleUntilMs = expectedRevealMs
         this.$refs.spinner.demoSpin(this.game.players[0], undefined, undefined, spinDurationMs)
-      }
+      })
+    },
+    isWinnerCurrentUser(winner) {
+      const sid = '76561197984485194'
+      // const sid = getSteamId()
+      if (!sid || !winner?.steamid) return false
+      return String(winner.steamid) === String(sid)
     },
     findWinnerByTicket(ticketRaw) {
       const t = toNumber(String(ticketRaw ?? '').replace(/[^\d.-]/g, ''), NaN)
@@ -479,6 +609,9 @@ export default {
         this.pendingSpinWinner || this.findWinnerByTicket(this.fairness.ticket)
       if (!target) return
 
+      this.suppressJackpotSpinnerRailAfterReveal = false
+      this.jackpotSpinnerRailAllowed = true
+      this.jackpotWinnerRevealVisible = false
       this.jackpotSpinDone = true
       const syncSeed = [this.fairness.ticket, this.fairness.hash, this.game?._id]
         .filter((x) => x != null && String(x).length > 0)
@@ -502,20 +635,29 @@ export default {
     },
     async onJackpotSpinComplete() {
       this.spinVisibleUntilMs = null
+      this.jackpotWinnerRevealVisible = true
 
       const winnerForResults =
         this.pendingSpinWinner || this.findWinnerByTicket(this.fairness.ticket)
       this.pendingSpinWinner = null
 
-      /** Snapshot ended round before refresh clears / replaces players (same payload shape as "CURRENT ENTRIES" click). */
-      if (winnerForResults && Array.isArray(this.game?.players) && this.game.players.length) {
-        this.openModal('jackpot results', {
-          jackpot: {
-            ...this.game,
-            players: [...this.game.players]
-          },
-          winner: winnerForResults,
-          pot_value: this.pot_value
+      const rollSig = `${String(this.game?._id ?? '')}|${String(this.fairness.ticket ?? '')}|${String(this.fairness.hash ?? '')}`
+      if (
+        winnerForResults &&
+        this.isWinnerCurrentUser(winnerForResults) &&
+        rollSig !== this.lastJackpotWinnerModalSig &&
+        rollSig !== '||'
+      ) {
+        this.lastJackpotWinnerModalSig = rollSig
+        const items = potItemsFlattenedForDisplay(this.game?.players)
+        openModal('jackpot winner choice', {
+          tradeOfferUrl: this.pendingWinnerTradeUrl,
+          potValue: this.pot_value,
+          potId: this.potId,
+          loadInventory: () => this.loadUserInventory(),
+          deposit: (skins) => this.depositSelectedSkins(skins),
+          avatar: winnerForResults.avatar || '/img/user/userImage.png',
+          items
         })
       }
 
@@ -571,7 +713,7 @@ export default {
         this.serverRoundEndMs != null && this.nowMs() < this.serverRoundEndMs
       const spinRevealInProgress =
         this.spinVisibleUntilMs != null && this.nowMs() <= this.spinVisibleUntilMs
-      if (roundCountdownStillLive || spinRevealInProgress) {
+      if (roundCountdownStillLive || spinRevealInProgress || this.jackpotWinnerRevealVisible) {
         return
       }
       this.clearServerTimer()
@@ -588,6 +730,20 @@ export default {
       this.serverRoundStartMs = startMs
       this.serverRoundEndMs = endMs
       this.timerTotalSeconds = Math.max(1, Math.ceil((endMs - startMs) / 1000))
+      const now = this.nowMs()
+      // New round with betting still open — allow spinner rail again when this round's end passes.
+      if (now < endMs) {
+        this.suppressJackpotSpinnerRailAfterReveal = false
+        this.jackpotSpinnerRailAllowed = true
+      } else {
+        const inSpinWindow =
+          this.spinVisibleUntilMs != null && now <= this.spinVisibleUntilMs
+        if (inSpinWindow) {
+          this.jackpotSpinnerRailAllowed = true
+        } else if (!this.jackpotWinnerRevealVisible) {
+          this.jackpotSpinnerRailAllowed = false
+        }
+      }
       // Round is closing (server state, past end time, or spin): do not run the countdown interval.
       if (this.isRoundEndingPhase) {
         this.stopTimerTick()
@@ -768,10 +924,20 @@ export default {
         onStartTimer: ({ start, end, send } = {}) => {
           if (start != null && end != null) {
             if (send != null) this.syncServerTimeFromTimestamp(send)
+            this.lastJackpotRollSignature = ''
+            this.pendingWinnerTradeUrl = ''
+            this.lastJackpotWinnerModalSig = ''
+            this.suppressJackpotSpinnerRailAfterReveal = false
+            this.resetFairnessForNewRound()
             this.applyServerTimer(start, end)
           }
         },
-        onRoll: async ({ ticket, hash, block, avatars, winner, winner_data }) => {
+        onRoll: async (payload) => {
+          const { ticket, hash, block, avatars, winner, winner_data } = payload || {}
+          const rollSig = `${String(ticket ?? '')}|${String(hash ?? '')}`
+          if (rollSig === this.lastJackpotRollSignature && rollSig !== '|') return
+          this.lastJackpotRollSignature = rollSig
+
           this.fairness.ticket = ticket ?? ''
           this.fairness.hash = hash ?? ''
           this.fairness.eos =
@@ -780,6 +946,7 @@ export default {
               : block?.id ?? block ?? this.fairness.eos
           this.fairness.secret = this.fairness.secret || ''
           this.rollAvatars = Array.isArray(avatars) ? avatars : []
+          this.pendingWinnerTradeUrl = tradeOfferUrlFromJackpotRollPayload(payload)
 
           let spinTarget = null
           const winnerPayload = winner_data || winner
@@ -812,8 +979,8 @@ export default {
           } else if (spinTarget) {
             this.pendingSpinWinner = spinTarget
             this.startJackpotSpinFromRoll()
-          } else {
-            this.demoOpen()
+        } else {
+          this.demoOpen()
           }
         },
         onLastHistory: async (payload) => {
