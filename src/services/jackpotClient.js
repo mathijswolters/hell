@@ -4,12 +4,12 @@ import { getAuthToken } from '@/auth/session'
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 
 /**
- * Default Socket.IO origin (HTTPS :2083). REST uses :2052 — not the same port.
- * For production behind a Cloudflare **domain**, set `VITE_SOCKET_HOST` or `VITE_SOCKET_URL` in Vercel:
- * browsers require TLS to match the **hostname** on the certificate; `https://<ip>:2083` often fails while
- * `https://socket.yourdomain.com:2083` works (DNS A/AAAA to your origin, grey-cloud or Spectrum on 2083).
+ * Direct Engine.IO URL (dev tools / overrides only). REST uses :2052 — not the same port.
+ * Port 2083 is plain HTTP on the origin; the browser must not open `https://<ip>:2083` (ERR_SSL_PROTOCOL_ERROR).
+ * Default is **same-origin** (`window.location.origin`): Vite and Vercel proxy `/socket.io` → this host.
+ * Override with `VITE_SOCKET_URL` / `VITE_SOCKET_HOST`, or set `VITE_SOCKET_RELATIVE=false` and a working HTTPS URL.
  */
-export const SOCKET_SERVER_ORIGIN = 'https://116.202.242.165:2083'
+export const SOCKET_SERVER_ORIGIN = 'http://116.202.242.165:2083'
 
 /** @deprecated Use SOCKET_SERVER_ORIGIN */
 export const BACKEND_ORIGIN = SOCKET_SERVER_ORIGIN
@@ -23,9 +23,14 @@ function parseSocketHostname(raw) {
   return h
 }
 
+/** When not `'false'`, connect to `window.location.origin` so `/socket.io` is proxied (Vite/Vercel) — avoids mixed content and bogus HTTPS-to-IP. */
+function socketUseSameOrigin() {
+  return import.meta.env.VITE_SOCKET_RELATIVE !== 'false'
+}
+
 /**
- * Resolved URL for `io()` (runtime). HTTPS pages cannot use `ws://` / `http://` (mixed content).
- * Priority: `VITE_SOCKET_URL` (full origin) → `VITE_SOCKET_HOST` + `VITE_SOCKET_PORT` → `SOCKET_SERVER_ORIGIN`.
+ * Resolved URL for `io()` (runtime).
+ * Priority: `VITE_SOCKET_URL` → `VITE_SOCKET_HOST` + port → same-origin (default) → `SOCKET_SERVER_ORIGIN`.
  */
 export function getSocketUrl() {
   const explicit = (import.meta.env.VITE_SOCKET_URL || '').trim()
@@ -40,11 +45,11 @@ export function getSocketUrl() {
     }
   }
 
-  const base = SOCKET_SERVER_ORIGIN
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && base.startsWith('http://')) {
-    return base.replace(/^http:/, 'https:')
+  if (socketUseSameOrigin() && typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin
   }
-  return base
+
+  return SOCKET_SERVER_ORIGIN
 }
 
 /** Set `VITE_SOCKET_FORCE_POLLING=true` to use polling only (no WebSocket upgrade). */
@@ -60,11 +65,13 @@ export function isSocketEnabled() {
 }
 
 export function getSocketDebugInfo() {
+  const sameOrigin = socketUseSameOrigin()
   return {
     enabled: isSocketEnabled(),
     socketServerUrl: SOCKET_SERVER_ORIGIN,
     viteSocketHost: (import.meta.env.VITE_SOCKET_HOST || '').trim() || undefined,
     viteSocketUrl: (import.meta.env.VITE_SOCKET_URL || '').trim() || undefined,
+    viteSocketRelative: sameOrigin ? 'true (default)' : 'false',
     ioUrl: getSocketUrl(),
     enginePath: SOCKET_PATH,
     transports: SOCKET_FORCE_POLLING ? ['polling'] : ['polling', 'websocket']
@@ -297,8 +304,7 @@ async function request(path, options = {}) {
 }
 
 /**
- * Connects directly to the socket host (see `getSocketUrl()`).
- * Backend must send `Access-Control-Allow-Origin` (and credentials if used) for the browser origin.
+ * Connects to Engine.IO (see `getSocketUrl()`). Same-origin + proxy: no CORS from the browser.
  */
 export function createJackpotSocket() {
   if (!isSocketEnabled()) return null

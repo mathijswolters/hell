@@ -17,6 +17,10 @@
       "destination": "http://116.202.242.165:2052/user/$1"
     },
     {
+      "source": "/socket.io/(.*)",
+      "destination": "http://116.202.242.165:2083/socket.io/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
