@@ -4,19 +4,18 @@ import { getAuthToken } from '@/auth/session'
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 
 /**
- * Socket.IO server origin (port 2082). REST uses :2052 — not the same port.
+ * Socket.IO server origin (HTTPS on port 2083 — Cloudflare SSL edge). REST uses :2052 — not the same port.
  * Must match `vite.config.js` `SOCKET_ORIGIN`.
  */
-export const SOCKET_SERVER_ORIGIN = 'http://116.202.242.165:2082'
+export const SOCKET_SERVER_ORIGIN = 'https://116.202.242.165:2083'
 
 /** @deprecated Use SOCKET_SERVER_ORIGIN */
 export const BACKEND_ORIGIN = SOCKET_SERVER_ORIGIN
 
 /**
  * Resolved URL for `io()` (runtime). HTTPS pages cannot use `ws://` / `http://` (mixed content).
- * - Set `VITE_SOCKET_URL` to `https://…` (or `wss://…`) when TLS terminates on another host (e.g. nginx in front of :2082).
- * - If unset and the app runs on HTTPS, the default origin is upgraded `http` → `https` so the client uses WSS;
- *   the host must then serve TLS on port 2082, or you must set `VITE_SOCKET_URL` to that HTTPS proxy.
+ * - Set `VITE_SOCKET_URL` to override (e.g. another TLS terminator).
+ * - If the default is still `http://` and the app runs on HTTPS, the origin is upgraded to `https:` for WSS.
  */
 export function getSocketUrl() {
   const explicit = (import.meta.env.VITE_SOCKET_URL || '').trim()

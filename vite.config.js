@@ -4,7 +4,7 @@ import vue from '@vitejs/plugin-vue'
 import { imagetools } from 'vite-imagetools'
 
 const API_ORIGIN = 'http://116.202.242.165:2052'
-const SOCKET_ORIGIN = 'http://116.202.242.165:2082'
+const SOCKET_ORIGIN = 'https://116.202.242.165:2083'
 
 export default defineConfig({
   plugins: [vue(), imagetools()],
@@ -32,7 +32,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false
       },
-      // Socket.IO proxy (websocket + polling) — port 2082
+      // Socket.IO proxy (websocket + polling) — HTTPS :2083
       '^/socket\\.io(?:/.*)?$': {
         target: SOCKET_ORIGIN,
         changeOrigin: true,

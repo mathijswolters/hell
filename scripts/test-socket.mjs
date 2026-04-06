@@ -11,7 +11,7 @@
  */
 import { io } from 'socket.io-client'
 
-const url = process.env.SOCKET_TEST_URL || 'http://116.202.242.165:2052'
+const url = process.env.SOCKET_TEST_URL || 'https://116.202.242.165:2083'
 const path = process.env.SOCKET_TEST_PATH || '/socket.io'
 
 function probeHttp() {
