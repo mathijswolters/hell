@@ -7,7 +7,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, ''
  * Socket.IO server origin (HTTPS on port 2083 — Cloudflare SSL edge). REST uses :2052 — not the same port.
  * Must match `vite.config.js` `SOCKET_ORIGIN`.
  */
-export const SOCKET_SERVER_ORIGIN = 'https://116.202.242.165:2083'
+export const SOCKET_SERVER_ORIGIN = 'http://116.202.242.165:2083'
 
 /** @deprecated Use SOCKET_SERVER_ORIGIN */
 export const BACKEND_ORIGIN = SOCKET_SERVER_ORIGIN
