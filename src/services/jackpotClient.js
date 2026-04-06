@@ -4,22 +4,41 @@ import { getAuthToken } from '@/auth/session'
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 
 /**
- * Socket.IO server origin (HTTPS on port 2083 — Cloudflare SSL edge). REST uses :2052 — not the same port.
- * Must match `vite.config.js` `SOCKET_ORIGIN`.
+ * Default Socket.IO origin (HTTPS :2083). REST uses :2052 — not the same port.
+ * For production behind a Cloudflare **domain**, set `VITE_SOCKET_HOST` or `VITE_SOCKET_URL` in Vercel:
+ * browsers require TLS to match the **hostname** on the certificate; `https://<ip>:2083` often fails while
+ * `https://socket.yourdomain.com:2083` works (DNS A/AAAA to your origin, grey-cloud or Spectrum on 2083).
  */
-export const SOCKET_SERVER_ORIGIN = 'http://116.202.242.165:2083'
+export const SOCKET_SERVER_ORIGIN = 'https://116.202.242.165:2083'
 
 /** @deprecated Use SOCKET_SERVER_ORIGIN */
 export const BACKEND_ORIGIN = SOCKET_SERVER_ORIGIN
 
+function parseSocketHostname(raw) {
+  let h = String(raw).trim().replace(/^https?:\/\//i, '')
+  const slash = h.indexOf('/')
+  if (slash !== -1) h = h.slice(0, slash)
+  const colon = h.indexOf(':')
+  if (colon !== -1) h = h.slice(0, colon)
+  return h
+}
+
 /**
  * Resolved URL for `io()` (runtime). HTTPS pages cannot use `ws://` / `http://` (mixed content).
- * - Set `VITE_SOCKET_URL` to override (e.g. another TLS terminator).
- * - If the default is still `http://` and the app runs on HTTPS, the origin is upgraded to `https:` for WSS.
+ * Priority: `VITE_SOCKET_URL` (full origin) → `VITE_SOCKET_HOST` + `VITE_SOCKET_PORT` → `SOCKET_SERVER_ORIGIN`.
  */
 export function getSocketUrl() {
   const explicit = (import.meta.env.VITE_SOCKET_URL || '').trim()
   if (explicit) return explicit.replace(/\/$/, '')
+
+  const hostRaw = (import.meta.env.VITE_SOCKET_HOST || '').trim()
+  if (hostRaw) {
+    const hostname = parseSocketHostname(hostRaw)
+    if (hostname) {
+      const port = String(import.meta.env.VITE_SOCKET_PORT || '2083').trim() || '2083'
+      return `https://${hostname}:${port}`
+    }
+  }
 
   const base = SOCKET_SERVER_ORIGIN
   if (typeof window !== 'undefined' && window.location.protocol === 'https:' && base.startsWith('http://')) {
@@ -44,9 +63,11 @@ export function getSocketDebugInfo() {
   return {
     enabled: isSocketEnabled(),
     socketServerUrl: SOCKET_SERVER_ORIGIN,
+    viteSocketHost: (import.meta.env.VITE_SOCKET_HOST || '').trim() || undefined,
+    viteSocketUrl: (import.meta.env.VITE_SOCKET_URL || '').trim() || undefined,
     ioUrl: getSocketUrl(),
     enginePath: SOCKET_PATH,
-    transports: SOCKET_FORCE_POLLING ? ['polling'] : ['websocket', 'polling']
+    transports: SOCKET_FORCE_POLLING ? ['polling'] : ['polling', 'websocket']
   }
 }
 
@@ -286,7 +307,8 @@ export function createJackpotSocket() {
 
   return io(getSocketUrl(), {
     path: SOCKET_PATH,
-    transports: SOCKET_FORCE_POLLING ? ['polling'] : ['websocket', 'polling'],
+    // Polling first (Socket.IO default): WSS upgrade often fails behind Cloudflare / TLS edge; polling over HTTPS works.
+    transports: SOCKET_FORCE_POLLING ? ['polling'] : ['polling', 'websocket'],
     upgrade: !SOCKET_FORCE_POLLING,
     reconnection: true,
     reconnectionAttempts: 8,
