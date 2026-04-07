@@ -213,7 +213,7 @@
         <template v-else>Waiting for the EOS block to be irreversible</template>
       </p>
       <span
-        v-if="hasJackpotFairnessFromRoll"
+        v-if="showJackpotProvablyFairLine"
         class="flex flex-col items-center w-full max-w-full left-0 right-0 px-2 sm:px-4 text-center gap-0.5 top-[calc(100%+1rem)]"
       >
         <span class="font-Rubik font-medium text-sm text-[#FF4444]"
@@ -400,7 +400,9 @@ export default {
        * `byEnd` true immediately and showed an empty/stale spinner. Keep the rail hidden until a
        * live betting window (`now < end`), socket `jackpot:startTimer`, or a roll-driven spin.
        */
-      jackpotSpinnerRailAllowed: false
+      jackpotSpinnerRailAllowed: false,
+      /** Ticket / hash / EOS row only after `Spinner` emits `complete` (not when roll arrives / spin starts). */
+      jackpotFairnessShownAfterSpin: false
     }
   },
   created() {},
@@ -442,6 +444,10 @@ export default {
       const ticketOk = t != null && String(t).trim() !== ''
       const hashOk = h != null && String(h).trim() !== ''
       return ticketOk && hashOk
+    },
+    /** Same data as `hasJackpotFairnessFromRoll`, but shown only after the reel animation finishes. */
+    showJackpotProvablyFairLine() {
+      return this.hasJackpotFairnessFromRoll && this.jackpotFairnessShownAfterSpin
     },
     /** Ring + label: no backend end time yet → empty ring. */
     displayTimerValue() {
@@ -597,12 +603,14 @@ export default {
     resetFairnessForNewRound() {
       this.fairness = { ticket: '', hash: '', secret: '', eos: '' }
       this.jackpotWinnerRevealVisible = false
+      this.jackpotFairnessShownAfterSpin = false
       this.$nextTick(() => this.$refs.spinner?.resetWinnerReveal?.())
     },
     demoOpen() {
       this.isRolling = true
       this.suppressJackpotSpinnerRailAfterReveal = false
       this.jackpotWinnerRevealVisible = false
+      this.jackpotFairnessShownAfterSpin = false
       this.jackpotSpinnerRailAllowed = true
       if (!this.game.players?.length) return
       this.spinVisibleUntilMs = this.nowMs() + JACKPOT_SPIN_DURATION_MS + JACKPOT_SPIN_RAIL_EXTRA_MS
@@ -649,6 +657,7 @@ export default {
       this.suppressJackpotSpinnerRailAfterReveal = false
       this.jackpotSpinnerRailAllowed = true
       this.jackpotWinnerRevealVisible = false
+      this.jackpotFairnessShownAfterSpin = false
       this.jackpotSpinDone = true
       const syncSeed = [this.fairness.ticket, this.fairness.hash, this.game?._id]
         .filter((x) => x != null && String(x).length > 0)
@@ -670,6 +679,9 @@ export default {
     async onJackpotSpinComplete() {
       this.spinVisibleUntilMs = null
       this.jackpotWinnerRevealVisible = true
+      if (this.hasJackpotFairnessFromRoll) {
+        this.jackpotFairnessShownAfterSpin = true
+      }
 
       const winnerForResults =
         this.pendingSpinWinner || this.findWinnerByTicket(this.fairness.ticket)

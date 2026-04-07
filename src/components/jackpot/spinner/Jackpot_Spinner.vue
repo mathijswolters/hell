@@ -413,7 +413,7 @@ export default {
                   this.finsihed_spinning = true;
                   this.unboxRunning = false;
                   this.$emit("complete", game.demo);
-                }, 1000);
+                }, 3000);
               } else {
                 // during spin, keep easing normally
                 // currentX = currentX - 20;
