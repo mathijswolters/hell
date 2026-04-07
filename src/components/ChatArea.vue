@@ -239,15 +239,17 @@
           type="text"
           v-model="newMessage"
           ref="inputField"
+          :disabled="!signedIn"
           @keyup.enter="sendMessage"
-          class="w-full bg-transparent placeholder:text-[#D7B7B7] font-Rubik font-normal text-[14px] p-2 pr-10 focus:outline-none text-white"
-          placeholder="Enter your message"
+          class="w-full bg-transparent placeholder:text-[#D7B7B7] font-Rubik font-normal text-[14px] p-2 pr-10 focus:outline-none text-white disabled:cursor-not-allowed disabled:opacity-60"
+          :placeholder="signedIn ? 'Enter your message' : 'Sign in to chat'"
         />
 
         <img
-          @click="showEmojiPicker"
+          @click="signedIn && showEmojiPicker()"
           src="../assets/icons/emoji.svg"
-          class="absolute top-2 right-2.5 cursor-pointer"
+          class="absolute top-2 right-2.5"
+          :class="signedIn ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'"
         />
         <div
           class="absolute bottom-full w-full overflow-y-auto flex flex-wrap justify-center bg-[#530000] pt-2 px-2 transition-all duration-300"
@@ -311,7 +313,9 @@
           Tip Rain
         </div> -->
         <button
-          class="h-[2rem] px-[0.75rem] bg-[#FF3435] text-white font-Rubik font-extrabold text-[14px]"
+          type="button"
+          class="h-[2rem] px-[0.75rem] bg-[#FF3435] text-white font-Rubik font-extrabold text-[14px] disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="!signedIn"
           @click="sendMessage"
         >
           SEND
@@ -326,7 +330,7 @@ import joypixels from 'emoji-toolkit'
 import UserImage from './UserImage.vue'
 import DiscordIcon from '../components/icons/Discord.vue'
 import defaultUserImg from '@/assets/img/user/userImage.png'
-import { getAuth } from '@/auth/session'
+import { authVersion, getAuth, isLoggedIn } from '@/auth/session'
 export default {
   components: {
     SpeakerWaveIcon,
@@ -555,6 +559,10 @@ export default {
     reversedMessages() {
       return [...this.messages].reverse()
     },
+    signedIn() {
+      authVersion.value
+      return isLoggedIn()
+    },
     chatSteamLabel() {
       const id = getAuth()?.steamid
       if (!id) return '—'
@@ -577,6 +585,7 @@ export default {
       event.stopPropagation()
     },
     sendMessage() {
+      if (!this.signedIn) return
       const messageContent = this.newMessage.trim()
       if (messageContent !== '') {
         const now = new Date()
@@ -630,9 +639,11 @@ export default {
       })
     },
     showEmojiPicker() {
+      if (!this.signedIn) return
       this.emojisPickerVisible = !this.emojisPickerVisible
     },
     importEmoji(name) {
+      if (!this.signedIn) return
       this.newMessage += ` :${name}: `
       this.emojisPickerVisible = false
       this.$refs.inputField.focus()

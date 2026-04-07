@@ -28,7 +28,6 @@
         </div>
       </div>
       <div
-        v-if="loggedIn"
         class="absolute md:hidden flex items-center justify-center w-[35px] h-[37px] gap-4 z-10 top-36 bg-[rgba(95,3,3,1)] text-black p-1 cursor-pointer hover:opacity-80 transition-opacity duration-200"
         :class="{
           'right-0 rounded-l-full': chat_position.position == 'right',
@@ -41,7 +40,6 @@
         />
       </div>
         <div
-          v-if="loggedIn"
           class="fixed z-10 md:z-0 h-[100vh] md:h-[calc(100vh-4.5rem)] w-full md:w-[18.75rem] md:max-w-[18.75rem] top-0 md:top-[4.5rem]"
         :class="{
           ' right-0 transition-all duration-500':

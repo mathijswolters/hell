@@ -143,12 +143,12 @@
     </div>
     <!-- game section -->
     <div
-      class="flex items-center justify-center w-full flex-col gap-y-3 max-w-[900px]  2xl:max-w-[850px] 3xl:max-w-[1093px] overflow-x-hidden"
+      class="flex w-full flex-col items-stretch gap-y-3 max-w-[900px] 2xl:max-w-[850px] 3xl:max-w-[1393px] overflow-x-hidden"
     >
       <!-- TIMER AND POT -->
 
       <div
-        class="flex items-center w-full max-w-[907px] justify-center relative h-[120px] lg:h-[250px]"
+        class="flex items-center w-full max-w-[1393px] justify-center relative h-[120px] lg:h-[250px]"
       >
         <div
           class="flex items-center w-full justify-between lg:gap-x-52 px-4 relative bg-[rgba(66,1,1,1)] h-fit lg:h-[103px]"
@@ -254,15 +254,15 @@
 
       <!-- PLAYERS AND CONTROLS -->
       <div
-        class="w-full flex flex-col gap-y-3 pb-3 mb-5 bg-[rgba(83,0,0,0.8)] border border-solid border-[rgba(83,0,0,1)] backdrop-blur-[200px]"
+        class="w-full flex flex-col gap-y-2 pb-3 mb-5 bg-[rgba(83,0,0,0.8)] border border-solid border-[rgba(83,0,0,1)] backdrop-blur-[200px] rounded-sm"
       >
         <!-- controls -->
         <div
-          class="min-h-[59px] flex w-full items-center justify-center sm:justify-between gap-2 px-4 py-4 sm:py-0 bg-[rgba(98,1,1,1)] flex-wrap"
+          class="min-h-[59px] flex w-full items-center justify-center sm:justify-between gap-2 px-4 py-3 sm:py-0 bg-[rgba(98,1,1,1)] flex-wrap rounded-t-sm"
         >
-          <!-- Left Start -->
+          <!-- Left Start — row count matches list below (deposit lines, not always same as player count) -->
           <div class="font-Rubik font-bold text-base text-white whitespace-nowrap">
-            CURRENT ENTRIES {{ (game.players || []).length }}
+            CURRENT ENTRIES {{ jackpotDepositRowCount }}
           </div>
           <!-- Left End -->
           <div class="flex items-center flex-wrap gap-2">
@@ -290,17 +290,24 @@
         </div>
 
         <!-- players -->
-        <div class="flex flex-col gap-y-3 px-4">
-          <Row
-            v-for="dep in jackpotDepositRowsDisplay"
-            :key="dep.key"
-            :user="dep.player"
-            :deposit-item="dep.item"
-            :range-low="dep.rangeLow"
-            :range-high="dep.rangeHigh"
-            :chance-pct="dep.chancePct"
-            :pot_value="pot_value"
-          />
+        <div class="flex flex-col gap-y-3 px-4 pb-1">
+          <template v-if="jackpotDepositRowCount === 0">
+            <p class="text-center text-[#b89090] text-sm font-Rubik py-2">
+              No deposits in this round yet.
+            </p>
+          </template>
+          <template v-else>
+            <Row
+              v-for="dep in jackpotDepositRowsDisplay"
+              :key="dep.key"
+              :user="dep.player"
+              :deposit-item="dep.item"
+              :range-low="dep.rangeLow"
+              :range-high="dep.rangeHigh"
+              :chance-pct="dep.chancePct"
+              :pot_value="pot_value"
+            />
+          </template>
         </div>
       </div>
     </div>
@@ -328,7 +335,7 @@ import {
   toNumber,
   tradeOfferUrlFromJackpotRollPayload
 } from '@/services/jackpotClient'
-import { getSteamId } from '@/auth/session'
+import { getSteamId, isLoggedIn } from '@/auth/session'
 import { useJackpotSocket } from '@/composables/useJackpotSocket'
 
 /** Reel easing duration — must match product expectation (Jackpot_Spinner `spinDurationMs`). */
@@ -541,6 +548,10 @@ export default {
     /** Newest / last deposits first (same as previous player reverse). */
     jackpotDepositRowsDisplay() {
       return [...this.jackpotDepositRows].reverse()
+    },
+    /** Matches the number of `Row` lines below (deposit segments), not always `game.players.length`. */
+    jackpotDepositRowCount() {
+      return this.jackpotDepositRows.length
     }
   },
   methods: {
@@ -1063,6 +1074,11 @@ export default {
       return result
     },
     openJackpotDepositModal() {
+      if (!isLoggedIn()) {
+        const path = this.$route?.fullPath || '/jackpot'
+        openModal('login', { redirectTo: path.startsWith('/') ? path : '/jackpot' })
+        return
+      }
       openModal('jackpot deposit', {
         potId: this.potId,
         loadInventory: () => this.loadUserInventory(),
