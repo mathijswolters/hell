@@ -1,8 +1,12 @@
 <template>
-  <div class="flex flex-col xl:flex-row items-start gap-5 px-3 ">
+  <!-- Sidebar + main align from the left (matches classic layout: rail | game | chat). -->
+  <div class="w-full px-3 sm:px-4">
+    <div
+      class="flex flex-col xl:flex-row xl:justify-start xl:items-start gap-5 xl:gap-5 w-full"
+    >
     <!-- history -->
     <div
-      class="flex flex-col md:flex-row xl:flex-col gap-4 max-w-full w-full xl:max-w-[360px] order-last lg:order-first"
+      class="flex flex-col md:flex-row xl:flex-col gap-4 w-full max-w-full xl:w-[360px] xl:max-w-[360px] xl:flex-shrink-0 order-last lg:order-first"
     >
       <!-- bigest 24h winner -->
       <div
@@ -143,15 +147,15 @@
     </div>
     <!-- game section -->
     <div
-      class="flex w-full flex-col items-stretch gap-y-3 max-w-[900px] 2xl:max-w-[850px] 3xl:max-w-[1393px] overflow-x-hidden"
+      class="flex w-full min-w-0 flex-1 flex-col items-stretch gap-y-3 overflow-x-hidden max-w-[min(100%,900px)] xl:max-w-none"
     >
       <!-- TIMER AND POT -->
 
       <div
-        class="flex items-center w-full max-w-[1393px] justify-center relative h-[120px] lg:h-[250px]"
+        class="flex items-center w-full max-w-full justify-center relative h-[120px] lg:h-[250px]"
       >
         <div
-          class="flex items-center w-full justify-between lg:gap-x-52 px-4 relative bg-[rgba(66,1,1,1)] h-fit lg:h-[103px]"
+          class="flex items-center w-full justify-between gap-x-4 lg:gap-x-12 xl:gap-x-16 2xl:gap-x-24 3xl:gap-x-32 px-4 relative bg-[rgba(66,1,1,1)] h-fit lg:h-[103px]"
         >
           <!-- LEFT -->
           <div class="flex justify-center py-1 lg:py-0 w-full flex-col gap-y-1 h-full">
@@ -205,7 +209,7 @@
       </div>
       <p
         v-if="showWaitingForBlockIrreversible"
-        class="w-full max-w-[907px] px-4 text-center font-Rubik text-xs sm:text-sm text-[#d7b7b7] leading-snug mt-1"
+        class="w-full max-w-full px-4 text-center font-Rubik text-xs sm:text-sm text-[#d7b7b7] leading-snug mt-1"
       >
         <template v-if="fairness.eos != null && String(fairness.eos).trim() !== ''">
           Waiting for block {{ formatFairnessEos(fairness.eos) }} to be irreversible
@@ -310,6 +314,7 @@
           </template>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>
