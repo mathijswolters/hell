@@ -22,7 +22,7 @@
           >
             <div class="w-full max-w-full flex flex-col">
               <RouterView class="w-full max-w-full" />
-              <Footer_component v-if="loggedIn" class="w-full shrink-0" />
+              <Footer_component class="w-full shrink-0" />
             </div>
           </div>
         </div>

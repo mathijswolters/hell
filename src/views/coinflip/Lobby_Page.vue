@@ -1,11 +1,11 @@
 <template>
   <div
-    class="w-full max-w-[98vw] overflow-hidden lg:overflow-visible lg:max-w-[93.3rem] flex items-center flex-col gap-[1rem] px-2 lg:px-0"
+    class="w-full min-w-0 max-w-full overflow-hidden lg:overflow-visible flex flex-col items-stretch gap-[1rem] px-3 sm:px-4"
   >
     <!-- Header Start -->
 
     <div
-      class="flex flex-col lg:flex-row w-full gap-4 lg:items-center lg:h-12 justify-center flex-wrap lg:flex-nowrap"
+      class="flex flex-col lg:flex-row w-full gap-4 lg:items-center lg:h-12 justify-center lg:justify-between flex-wrap lg:flex-nowrap"
     >
       <!-- Left Start -->
       <div
@@ -83,7 +83,7 @@
       </div>
       <!-- Left End -->
       <div
-        class="flex justify-center items-center lg:items-center w-full xl:w-4/5 lg:justify-between flex-wrap gap-2 xl:order-2 order-1"
+        class="flex justify-center items-center lg:items-center w-full xl:flex-1 xl:min-w-0 lg:justify-between flex-wrap gap-2 xl:order-2 order-1"
       >
         <!-- Center Start -->
         <div
@@ -104,7 +104,7 @@
               <span class="font-bold font-Rubik text-lg 2xl:text-2xl text-white">0</span>
             </div>
             <div
-              class="px-4 2xl::px-6 h-10 w-full sm:w-auto flex items-center justify-between gap-2 sm:gap-4 bg-[#690505] rounded"
+              class="px-4 2xl:px-6 h-10 w-full sm:w-auto flex items-center justify-between gap-2 sm:gap-4 bg-[#690505] rounded"
             >
               <span class="whitespace-nowrap font-semibold font-Rubik text-sm text-[#d7b7b7]"
                 >TOTAL VALUE</span
@@ -285,13 +285,13 @@
     <!-- Battles List End -->
     <!-- Tournament bracket start -->
     <div
-      class="hidden sm:flex items-center h-auto lg:h-[163px] w-full bg-[linear-gradient(90deg,rgba(255,52,53,0.25)_0%,rgba(255,52,53,0.5)_100%)] p-px justify-center mt-[-8+px]"
+      class="hidden sm:flex items-stretch h-auto lg:h-[163px] w-full bg-[linear-gradient(90deg,rgba(255,52,53,0.25)_0%,rgba(255,52,53,0.5)_100%)] p-px mt-[-8+px]"
     >
       <div
-        class="w-full h-full flex flex-col lg:flex-row items-center justify-between bg-[linear-gradient(90deg,#7C0A0B_0%,#5C0000_29.51%)] gap-2"
+        class="w-full h-full flex flex-col lg:flex-row lg:items-stretch items-center justify-between bg-[linear-gradient(90deg,#7C0A0B_0%,#5C0000_29.51%)] gap-2"
       >
         <div
-          class="max-h-[163px] lg:h-full max-w-full lg:max-w-[1491px] w-full flex items-center overflow-hidden relative"
+          class="max-h-[163px] lg:h-full max-w-full lg:max-w-none w-full min-w-0 flex-1 flex items-center overflow-hidden relative"
         >
           <div class="absolute top-2 left-2 flex flex-col items-start gap-2 z-10">
             <div class="text-center text-white text-xl font-semibold font-['Rubik'] leading-tight">
@@ -311,7 +311,7 @@
         </div>
 
         <div
-          class="flex h-full items-center w-full justify-between flex-wrap p-2 lg:p-0 lg:pr-2 lg:max-w-[564px]"
+          class="flex h-full items-center w-full shrink-0 justify-between flex-wrap p-2 lg:p-0 lg:pr-2 lg:max-w-[min(100%,564px)] xl:max-w-[564px]"
         >
           <div class="flex flex-col">
             <div>
@@ -358,7 +358,7 @@
         class="w-full h-full flex flex-col lg:flex-row items-center justify-between bg-[linear-gradient(90deg,#7C0A0B_0%,#5C0000_29.51%)] gap-2"
       >
         <div
-          class="max-h-[163px] lg:h-full max-w-full lg:max-w-[1491px] w-full flex items-center overflow-hidden relative"
+          class="max-h-[163px] lg:h-full max-w-full lg:max-w-none w-full min-w-0 flex items-center overflow-hidden relative"
         >
           <div class="absolute top-2 left-2 w-[95%] flex items-start justify-between">
             <div class="flex flex-col items-start gap-2 z-10">

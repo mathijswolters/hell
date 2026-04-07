@@ -28,11 +28,7 @@
         @click="steamOpenIdLogin"
       >
         <span class="flex h-7 w-7 shrink-0 items-center justify-center text-white" aria-hidden="true">
-          <svg class="h-7 w-7" viewBox="0 0 24 24" fill="currentColor">
-            <path
-              d="M11.979 0C7.742 0 3.989 3.75 3.989 8.002c0 .013.002.024.002.036L.146 15.396c-.276.53-.474 1.13-.474 1.768 0 1.668 1.354 3.022 3.022 3.022.636 0 1.216-.197 1.713-.53l.002.005 6.516-2.415c.88.244 1.804.38 2.764.38 4.237 0 7.99-3.75 7.99-8.002C21.99 3.75 18.237 0 14 0h-2.021zm.037 1.5h1.984c3.587 0 6.5 2.913 6.5 6.502 0 3.588-2.913 6.5-6.5 6.5-3.589 0-6.502-2.912-6.502-6.5 0-3.589 2.913-6.502 6.502-6.502z"
-            />
-          </svg>
+          <img src="../../assets/icons/steam.png" class="w-6 h-6 object-contain" />
         </span>
         <span
           class="font-Rubik font-extrabold text-white text-sm sm:text-base uppercase tracking-wide"
