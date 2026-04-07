@@ -72,7 +72,9 @@ export default {
 <style scoped>
 
 .reel-element-winner-thumb {
-  border: 2px solid #d6d5d4;
+  box-sizing: border-box;
+  border: 2px solid #ffffff;
+  border-radius: 4px;
 }
 .element-center {
   transform: scale(1.05);
@@ -146,10 +148,10 @@ export default {
   filter: grayscale(85%) brightness(0.45);
 }
 
-/* Reel only: light frame on the winning thumbnail after spin (inner 60×60) */
+/* Reel only: winner thumbnail frame after spin (inner 60×60) */
 .unbox-reel.unbox-reel--stopped .reel-element.final-item .backImg2 > div {
   box-sizing: border-box;
-  border: 2px solid #d6d5d4;
+  border: 2px solid #ffffff;
   border-radius: 4px;
 }
 

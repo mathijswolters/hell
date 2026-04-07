@@ -251,6 +251,7 @@
           :pot_value="pot_value"
           :case-content="game.players"
           :roll-avatars="rollAvatars"
+          :animation-type="rollAnimationType"
           :display-ticket="fairness.ticket"
           @complete="onJackpotSpinComplete"
         />
@@ -345,8 +346,8 @@ import { useJackpotSocket } from '@/composables/useJackpotSocket'
 
 /** Reel easing duration — must match product expectation (Jackpot_Spinner `spinDurationMs`). */
 const JACKPOT_SPIN_DURATION_MS = 30000
-/** After spin ends: settle + winner reveal; keep rail visible until then */
-const JACKPOT_SPIN_RAIL_EXTRA_MS = 2500
+/** After 30s spin: up to ~1s settle + 2s reel winner + detail; keep rail until `@complete`. */
+const JACKPOT_SPIN_RAIL_EXTRA_MS = 4000
 
 export default {
   name: 'Jackpot_Lobby',
@@ -380,6 +381,8 @@ export default {
       latestTotalValue: 0,
       /** From `jackpot:roll` — use for synced reel avatars when you wire the spinner */
       rollAvatars: [],
+      /** From `jackpot:roll` — controls spinner finish animation style (1..4). */
+      rollAnimationType: 1,
       potId: 1,
       socket: null,
       socketControl: null,
@@ -618,6 +621,7 @@ export default {
     /** New betting round (socket): clear fairness and collapse winner rail for the next round. */
     resetFairnessForNewRound() {
       this.fairness = { ticket: '', hash: '', secret: '', eos: '' }
+      this.rollAnimationType = 1
       this.jackpotWinnerRevealVisible = false
       this.jackpotFairnessShownAfterSpin = false
       this.$nextTick(() => this.$refs.spinner?.resetWinnerReveal?.())
@@ -995,7 +999,8 @@ export default {
           }
         },
         onRoll: async (payload) => {
-          const { ticket, hash, block, avatars, winner, winner_data } = payload || {}
+          const { ticket, hash, block, avatars, winner, winner_data, animation_type } =
+            payload || {}
           const rollSig = `${String(ticket ?? '')}|${String(hash ?? '')}`
           if (rollSig === this.lastJackpotRollSignature && rollSig !== '|') return
           this.lastJackpotRollSignature = rollSig
@@ -1008,6 +1013,11 @@ export default {
               : block?.id ?? block ?? this.fairness.eos
           this.fairness.secret = this.fairness.secret || ''
           this.rollAvatars = Array.isArray(avatars) ? avatars : []
+          const parsedAnimationType = Number(animation_type)
+          this.rollAnimationType =
+            Number.isFinite(parsedAnimationType) && parsedAnimationType >= 1
+              ? Math.min(4, Math.floor(parsedAnimationType))
+              : 1
           this.pendingWinnerTradeUrl = tradeOfferUrlFromJackpotRollPayload(payload)
 
           let spinTarget = null

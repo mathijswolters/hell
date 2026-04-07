@@ -1,5 +1,5 @@
 <template>
-  <div ref="unbox-spinner" class="unbox-spinner" v-bind:class="['spinner-' + '1']">
+  <div ref="unbox-spinner" class="unbox-spinner" :class="'spinner-' + effectiveAnimationType">
     <div class="spinner-inner relative" v-for="i in 1" v-bind:key="i">
       <div
         v-if="!finsihed_spinning"
@@ -68,6 +68,9 @@
 <script>
 import UnboxReel from "./Reel.vue";
 
+/** Winner row stays visible this long after the reel stops, before `complete` (lobby runs next steps). */
+const WINNER_REVEAL_HOLD_MS = 2000;
+
 /** Deterministic string → uint32 (same input → same hash on all runtimes). */
 function fnv1a32(str) {
   let h = 2166136261 >>> 0;
@@ -132,9 +135,16 @@ export default {
       syncSeed: null,
       spinDurationMs: 30000,
       spinPhase: "idle",
+      winnerRevealHoldTimer: null,
     };
   },
-  props: ["caseContent", "pot_value", "displayTicket"],
+  props: {
+    caseContent: { type: Array, default: () => [] },
+    pot_value: { type: [Number, String], default: 0 },
+    displayTicket: { type: [String, Number], default: "" },
+    /** 1–4: same motion as Hell GG `Version-1` … `Version-4` (from roll `animation_type`). */
+    animationType: { type: Number, default: 1 },
+  },
   methods: {
     formatTicketForDisplay(raw) {
       if (raw == null || String(raw).trim() === "") return "—";
@@ -147,7 +157,29 @@ export default {
       }
       return String(raw);
     },
+    /**
+     * Reel stopped: keep reel + bordered winner thumbnail for WINNER_REVEAL_HOLD_MS, then
+     * switch to winner detail row and emit `complete`.
+     */
+    scheduleEmitCompleteAfterWinnerHold(demo) {
+      if (this.winnerRevealHoldTimer) {
+        clearTimeout(this.winnerRevealHoldTimer);
+        this.winnerRevealHoldTimer = null;
+      }
+      this.finsihed_spinning = false;
+      this.winnerRevealHoldTimer = setTimeout(() => {
+        this.winnerRevealHoldTimer = null;
+        this.finsihed_spinning = true;
+        this.$nextTick(() => {
+          this.$emit("complete", demo);
+        });
+      }, WINNER_REVEAL_HOLD_MS);
+    },
     resetWinnerReveal() {
+      if (this.winnerRevealHoldTimer) {
+        clearTimeout(this.winnerRevealHoldTimer);
+        this.winnerRevealHoldTimer = null;
+      }
       this.finsihed_spinning = false;
       this.spinWinner = null;
       this.syncSeed = null;
@@ -302,8 +334,440 @@ export default {
         this.unboxReels[reel] = [...items];
       }
     },
+
+    /** Hell GG Version-1 (`Hell GG/Version-1/.../Jackpot_Spinner.vue`). */
+    _runSpinHellV1(index, game) {
+      const reelIdx = index + 1;
+      this.unboxRunning = true;
+      this.spinPhase = "spinning";
+
+      const reelItems = this.unboxReels[reelIdx].length;
+      const rngSlot = this.makeRng(this.syncSeed, "winner-slot-v1");
+      const minIndex = Math.floor(reelItems * 0.85);
+      const maxIndex = Math.floor(reelItems * 0.95);
+      let winnerIndex = Math.floor(rngSlot() * (maxIndex - minIndex + 1)) + minIndex;
+      const resolved = this.spinWinner;
+      if (resolved) {
+        this.unboxReels[reelIdx][winnerIndex] = resolved;
+      }
+      this.winner = resolved || this.unboxReels[reelIdx][winnerIndex];
+
+      const TOTAL_SPIN_MS = this.spinDurationMs;
+      const ITEM_WIDTH = 70;
+      const START_X = 2535;
+      const LOOPS = 0;
+      const REEL_LENGTH = reelItems * ITEM_WIDTH;
+      const WINNER_INDEX = 100;
+      const totalDistance = LOOPS * REEL_LENGTH + WINNER_INDEX * ITEM_WIDTH;
+      const targetIndex = LOOPS * reelItems + WINNER_INDEX;
+      const finalX = START_X - targetIndex * ITEM_WIDTH;
+      this.unboxReelStyle = {
+        transform: `translateX(${finalX}px) translateY(0px)`,
+        transition: "transform 0.3s ease-out",
+      };
+
+      const spinStart = performance.now();
+      const singlePhaseEase = (t) => {
+        t = Math.min(Math.max(t, 0), 1);
+        return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+      };
+
+      let lastX = START_X;
+
+      const animate = (currentTime) => {
+        const elapsed = currentTime - spinStart;
+        const progress = Math.min(elapsed / TOTAL_SPIN_MS, 1);
+        const easedProgress = singlePhaseEase(progress);
+        const distanceTraveled = totalDistance * easedProgress;
+        let currentX = START_X - distanceTraveled;
+
+        while (currentX < -REEL_LENGTH + START_X) {
+          currentX += REEL_LENGTH;
+        }
+
+        if (progress >= 0.95) {
+          this.unboxReelStyle = {
+            transform: `translateX(${currentX}px) translateY(0px)`,
+            transition: "transform 0.2s ease-out",
+          };
+        } else {
+          this.unboxReelStyle = {
+            transform: `translateX(${currentX}px) translateY(0px)`,
+            transition: "none",
+          };
+        }
+        lastX = currentX;
+        if (progress < 1) {
+          this.animationFrameId = requestAnimationFrame(animate);
+        } else {
+          cancelAnimationFrame(this.unboxReelsPosRepeater);
+
+          try {
+            const spinnerRect = this.$refs["unbox-spinner"].getBoundingClientRect();
+            const reelRect = this.$refs["reel-" + reelIdx][0].$el.getBoundingClientRect();
+            const spinnerCenter = spinnerRect.left + spinnerRect.width / 2;
+            let centeredIndex = Math.round(
+              (spinnerCenter - reelRect.left - 35) / ITEM_WIDTH
+            );
+
+            const reelItemsCount = this.unboxReels[reelIdx].length;
+
+            if (
+              isNaN(centeredIndex) ||
+              centeredIndex < 0 ||
+              centeredIndex >= reelItemsCount
+            ) {
+              centeredIndex =
+                Math.round((START_X - lastX) / ITEM_WIDTH) % reelItemsCount;
+              if (centeredIndex < 0) centeredIndex += reelItemsCount;
+            }
+
+            centeredIndex = centeredIndex % reelItemsCount;
+
+            const correctionTargetIndex = LOOPS * reelItemsCount + centeredIndex;
+            const correctionFinalX =
+              START_X -
+              correctionTargetIndex * ITEM_WIDTH +
+              START_X +
+              correctionTargetIndex +
+              ITEM_WIDTH -
+              63;
+            this.unboxReelStyle = {
+              transform: `translateX(${correctionFinalX}px) translateY(0px)`,
+              transition: "transform 0.15s ease-out",
+            };
+
+            this.unboxReelsSpinTimeout = setTimeout(() => {
+              this.unboxReelsPos = centeredIndex;
+              this.winner = this.unboxReels[reelIdx][centeredIndex];
+              this.spinPhase = "finished";
+              this.unboxRunning = false;
+              this.scheduleEmitCompleteAfterWinnerHold(game.demo);
+            }, 160);
+          } catch (e) {
+            const centeredIndex = WINNER_INDEX % this.unboxReels[reelIdx].length;
+            this.unboxReelsPos = centeredIndex;
+
+            this.unboxReelsSpinTimeout = setTimeout(() => {
+              this.spinPhase = "finished";
+              this.unboxRunning = false;
+              this.scheduleEmitCompleteAfterWinnerHold(game.demo);
+            }, 300);
+          }
+        }
+      };
+
+      this.animationFrameId = requestAnimationFrame(animate);
+    },
+
+    /** Hell GG Version-2 — same as V1 but travel index 104, correction −66, delayed complete. */
+    _runSpinHellV2(index, game) {
+      const reelIdx = index + 1;
+      this.unboxRunning = true;
+      this.spinPhase = "spinning";
+
+      const reelItems = this.unboxReels[reelIdx].length;
+      const rngSlot = this.makeRng(this.syncSeed, "winner-slot-v2");
+      const minIndex = Math.floor(reelItems * 0.85);
+      const maxIndex = Math.floor(reelItems * 0.95);
+      let winnerIndex = Math.floor(rngSlot() * (maxIndex - minIndex + 1)) + minIndex;
+      const resolved = this.spinWinner;
+      if (resolved) {
+        this.unboxReels[reelIdx][winnerIndex] = resolved;
+      }
+      this.winner = resolved || this.unboxReels[reelIdx][winnerIndex];
+
+      const TOTAL_SPIN_MS = this.spinDurationMs;
+      const ITEM_WIDTH = 70;
+      const START_X = 2535;
+      const LOOPS = 0;
+      const REEL_LENGTH = reelItems * ITEM_WIDTH;
+      const WINNER_INDEX = 104;
+      const totalDistance = LOOPS * REEL_LENGTH + WINNER_INDEX * ITEM_WIDTH;
+      const targetIndex = LOOPS * reelItems + WINNER_INDEX;
+      const finalX = START_X - targetIndex * ITEM_WIDTH;
+      this.unboxReelStyle = {
+        transform: `translateX(${finalX}px) translateY(0px)`,
+        transition: "transform 0.3s ease-out",
+      };
+
+      const spinStart = performance.now();
+      const singlePhaseEase = (t) => {
+        t = Math.min(Math.max(t, 0), 1);
+        return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+      };
+
+      let lastX = START_X;
+
+      const animate = (currentTime) => {
+        const elapsed = currentTime - spinStart;
+        const progress = Math.min(elapsed / TOTAL_SPIN_MS, 1);
+        const easedProgress = singlePhaseEase(progress);
+        const distanceTraveled = totalDistance * easedProgress;
+        let currentX = START_X - distanceTraveled;
+
+        while (currentX < -REEL_LENGTH + START_X) {
+          currentX += REEL_LENGTH;
+        }
+
+        if (progress >= 0.95) {
+          this.unboxReelStyle = {
+            transform: `translateX(${currentX}px) translateY(0px)`,
+            transition: "transform 0.2s ease-out",
+          };
+        } else {
+          this.unboxReelStyle = {
+            transform: `translateX(${currentX}px) translateY(0px)`,
+            transition: "none",
+          };
+        }
+        lastX = currentX;
+        if (progress < 1) {
+          this.animationFrameId = requestAnimationFrame(animate);
+        } else {
+          cancelAnimationFrame(this.unboxReelsPosRepeater);
+
+          try {
+            const spinnerRect = this.$refs["unbox-spinner"].getBoundingClientRect();
+            const reelRect = this.$refs["reel-" + reelIdx][0].$el.getBoundingClientRect();
+            const spinnerCenter = spinnerRect.left + spinnerRect.width / 2;
+            let centeredIndex = Math.round(
+              (spinnerCenter - reelRect.left - 35) / ITEM_WIDTH
+            );
+
+            const reelItemsCount = this.unboxReels[reelIdx].length;
+
+            if (
+              isNaN(centeredIndex) ||
+              centeredIndex < 0 ||
+              centeredIndex >= reelItemsCount
+            ) {
+              centeredIndex =
+                Math.round((START_X - lastX) / ITEM_WIDTH) % reelItemsCount;
+              if (centeredIndex < 0) centeredIndex += reelItemsCount;
+            }
+
+            centeredIndex = centeredIndex % reelItemsCount;
+
+            const correctionTargetIndex = LOOPS * reelItemsCount + centeredIndex;
+            const correctionFinalX =
+              START_X -
+              correctionTargetIndex * ITEM_WIDTH +
+              START_X +
+              correctionTargetIndex +
+              ITEM_WIDTH -
+              66;
+            this.unboxReelStyle = {
+              transform: `translateX(${correctionFinalX}px) translateY(0px)`,
+              transition: "transform 0.15s ease-out",
+            };
+
+            this.unboxReelsSpinTimeout = setTimeout(() => {
+              this.unboxReelsPos = centeredIndex;
+              this.winner = this.unboxReels[reelIdx][centeredIndex];
+              this.spinPhase = "finished";
+
+              this.unboxReelsSpinTimeout = setTimeout(() => {
+                this.unboxRunning = false;
+                this.scheduleEmitCompleteAfterWinnerHold(game.demo);
+              }, 500);
+            }, 160);
+          } catch (e) {
+            const centeredIndex = WINNER_INDEX % this.unboxReels[reelIdx].length;
+            this.unboxReelsPos = centeredIndex;
+
+            this.unboxReelsSpinTimeout = setTimeout(() => {
+              this.spinPhase = "finished";
+              this.unboxReelsSpinTimeout = setTimeout(() => {
+                this.unboxRunning = false;
+                this.scheduleEmitCompleteAfterWinnerHold(game.demo);
+              }, 500);
+            }, 300);
+          }
+        }
+      };
+
+      this.animationFrameId = requestAnimationFrame(animate);
+    },
+
+    /** Hell GG Version-3 — START_X 2515, −30 settle, 500ms reveal. */
+    _runSpinHellV3(index, game) {
+      const reelIdx = index + 1;
+      this.unboxRunning = true;
+      this.spinPhase = "spinning";
+
+      const reelItems = this.unboxReels[reelIdx].length;
+      const currentCenterIndex = this.unboxReelsPos;
+      const minIndex = Math.floor(reelItems * 0.85);
+      const maxIndex = Math.floor(reelItems * 0.95);
+      const rngSlot = this.makeRng(this.syncSeed, "winner-slot-v3");
+      let winnerIndex =
+        Math.floor(rngSlot() * (maxIndex - minIndex + 1)) + minIndex;
+      const baseIndexShift =
+        (winnerIndex - currentCenterIndex + reelItems) % reelItems;
+
+      const resolved = this.spinWinner;
+      if (resolved) {
+        this.unboxReels[reelIdx][winnerIndex] = resolved;
+      }
+      this.winner = resolved || this.unboxReels[reelIdx][winnerIndex];
+
+      const TOTAL_SPIN_MS = this.spinDurationMs;
+      const ITEM_WIDTH = 70;
+      const START_X = 2515;
+      const LOOPS = 0;
+      const REEL_LENGTH = reelItems * ITEM_WIDTH;
+      const totalDistance = LOOPS * REEL_LENGTH + baseIndexShift * ITEM_WIDTH;
+      const targetIndex = LOOPS * reelItems + baseIndexShift;
+      let finalX = START_X - targetIndex * ITEM_WIDTH;
+      this.unboxReelStyle = {
+        transform: `translateX(${finalX}px) translateY(0px)`,
+        transition: "transform 0.3s ease-out",
+      };
+
+      const spinStart = performance.now();
+      const singlePhaseEase = (t) => {
+        t = Math.min(Math.max(t, 0), 1);
+        return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+      };
+
+      const animate = (currentTime) => {
+        const elapsed = currentTime - spinStart;
+        const progress = Math.min(elapsed / TOTAL_SPIN_MS, 1);
+        const easedProgress = singlePhaseEase(progress);
+        const distanceTraveled = totalDistance * easedProgress;
+        let currentX = START_X - distanceTraveled;
+
+        while (currentX < -REEL_LENGTH + START_X) {
+          currentX += REEL_LENGTH;
+        }
+        const steps = Math.floor(distanceTraveled / ITEM_WIDTH);
+        const centerIndex =
+          (currentCenterIndex + steps) % this.unboxReels[reelIdx].length;
+        this.unboxReelsPos = centerIndex;
+        this.winner = this.unboxReels[reelIdx][centerIndex];
+
+        if (progress >= 1) {
+          finalX = finalX - 30;
+          this.unboxReelStyle = {
+            transform: `translateX(${finalX}px) translateY(0px)`,
+            transition: "transform 1s cubic-bezier(0.25,0.1,0.25,1)",
+          };
+
+          this.unboxReelsSpinTimeout = setTimeout(() => {
+            cancelAnimationFrame(this.unboxReelsPosRepeater);
+            this.winner = this.unboxReels[reelIdx][winnerIndex];
+            this.spinPhase = "finished";
+            this.unboxRunning = false;
+            this.scheduleEmitCompleteAfterWinnerHold(game.demo);
+          }, 500);
+        } else {
+          this.unboxReelStyle = {
+            transform: `translateX(${currentX}px) translateY(0px)`,
+            transition: "transform 0.3s ease-out",
+          };
+          this.animationFrameId = requestAnimationFrame(animate);
+        }
+      };
+
+      this.animationFrameId = requestAnimationFrame(animate);
+    },
+
+    /** Hell GG Version-4 — 35s spin, smoothing, −40 settle, 1s reveal. */
+    _runSpinHellV4(index, game) {
+      const reelIdx = index + 1;
+      this.unboxRunning = true;
+      this.spinPhase = "spinning";
+
+      const reelItems = this.unboxReels[reelIdx].length;
+      const currentCenterIndex = this.unboxReelsPos;
+      const minIndex = Math.floor(reelItems * 0.85);
+      const maxIndex = Math.floor(reelItems * 0.95);
+      const rngSlot = this.makeRng(this.syncSeed, "winner-slot-v4");
+      let winnerIndex =
+        Math.floor(rngSlot() * (maxIndex - minIndex + 1)) + minIndex;
+      const baseIndexShift =
+        (winnerIndex - currentCenterIndex + reelItems) % reelItems;
+
+      const resolved = this.spinWinner;
+      if (resolved) {
+        this.unboxReels[reelIdx][winnerIndex] = resolved;
+      }
+      this.displayCenterIndex = currentCenterIndex;
+      this.winner = resolved || this.unboxReels[reelIdx][winnerIndex];
+
+      const TOTAL_SPIN_MS = this.spinDurationMs;
+      const ITEM_WIDTH = 70;
+      const START_X = 2525;
+      const LOOPS = 0;
+      const REEL_LENGTH = reelItems * ITEM_WIDTH;
+      const totalDistance = LOOPS * REEL_LENGTH + baseIndexShift * ITEM_WIDTH;
+      const targetIndex = LOOPS * reelItems + baseIndexShift;
+      let finalX = START_X - targetIndex * ITEM_WIDTH;
+      this.unboxReelStyle = {
+        transform: `translateX(${finalX}px) translateY(0px)`,
+        transition: "transform 0.3s ease-out",
+      };
+
+      const spinStart = performance.now();
+      const singlePhaseEase = (t) => {
+        t = Math.min(Math.max(t, 0), 1);
+        return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+      };
+
+      const animate = (currentTime) => {
+        const elapsed = currentTime - spinStart;
+        const progress = Math.min(elapsed / TOTAL_SPIN_MS, 1);
+        const easedProgress = singlePhaseEase(progress);
+        const distanceTraveled = totalDistance * easedProgress;
+        let currentX = START_X - distanceTraveled;
+
+        while (currentX < -REEL_LENGTH + START_X) {
+          currentX += REEL_LENGTH;
+        }
+        const steps = Math.floor(distanceTraveled / ITEM_WIDTH);
+        const centerIndex =
+          (currentCenterIndex + steps) % this.unboxReels[reelIdx].length;
+        this.unboxReelsPos = centerIndex;
+
+        const smoothing = 0.1;
+        this.displayCenterIndex +=
+          (centerIndex - this.displayCenterIndex) * smoothing;
+        const displayIdx = Math.round(this.displayCenterIndex);
+        this.winner = this.unboxReels[reelIdx][displayIdx];
+
+        if (progress >= 1) {
+          finalX = finalX - 40;
+          this.unboxReelStyle = {
+            transform: `translateX(${finalX}px) translateY(0px)`,
+            transition: "transform 1s cubic-bezier(0.25,0.1,0.25,1)",
+          };
+
+          this.unboxReelsSpinTimeout = setTimeout(() => {
+            cancelAnimationFrame(this.unboxReelsPosRepeater);
+            this.winner = this.unboxReels[reelIdx][winnerIndex];
+            this.spinPhase = "finished";
+            this.unboxRunning = false;
+            this.scheduleEmitCompleteAfterWinnerHold(game.demo);
+          }, 1000);
+        } else {
+          this.unboxReelStyle = {
+            transform: `translateX(${currentX}px) translateY(0px)`,
+            transition: "transform 0.3s ease-out",
+          };
+          this.animationFrameId = requestAnimationFrame(animate);
+        }
+      };
+
+      this.animationFrameId = requestAnimationFrame(animate);
+    },
   },
   computed: {
+    effectiveAnimationType() {
+      const n = Number(this.animationType);
+      if (!Number.isFinite(n) || n < 1) return 1;
+      return Math.min(4, Math.floor(n));
+    },
     unboxGetItems() {
       const rng = this.makeRng(this.syncSeed, "chance-reel");
       return this.buildChanceWeightedReel(this.caseContent, 150, rng);
@@ -327,105 +791,16 @@ export default {
               clearTimeout(this.unboxReelsSpinTimeout);
               this.unboxReelsSpinTimeout = null;
             }
-
-            this.unboxRunning = true;
-
-            this.spinPhase = "spinning";
-
-            const reelItems = this.unboxReels[index + 1].length;
-            const currentCenterIndex = this.unboxReelsPos;
-            const minIndex = Math.floor(reelItems * 0.85);
-            const maxIndex = Math.floor(reelItems * 0.95);
-            const rngSlot = this.makeRng(this.syncSeed, "winner-slot");
-            var winnerIndex =
-              Math.floor(rngSlot() * (maxIndex - minIndex + 1)) + minIndex;
-            const baseIndexShift =
-              (winnerIndex - currentCenterIndex + reelItems) % reelItems;
-
-            const resolved = this.spinWinner;
-            if (resolved) {
-              this.unboxReels[index + 1][winnerIndex] = resolved;
+            if (this.winnerRevealHoldTimer) {
+              clearTimeout(this.winnerRevealHoldTimer);
+              this.winnerRevealHoldTimer = null;
             }
-            // seed the displayed index for smoothing
-            this.displayCenterIndex = currentCenterIndex;
-            this.winner = resolved || this.unboxReels[index + 1][winnerIndex];
 
-            const TOTAL_SPIN_MS = this.spinDurationMs;
-            const ITEM_WIDTH = 70;
-            const START_X = 2525;
-            const LOOPS = 0;
-            const REEL_LENGTH = reelItems * ITEM_WIDTH;
-            const totalDistance = LOOPS * REEL_LENGTH + baseIndexShift * ITEM_WIDTH;
-            const targetIndex = LOOPS * reelItems + baseIndexShift;
-            var finalX = START_X - targetIndex * ITEM_WIDTH;
-            this.unboxReelStyle = {
-              transform: `translateX(${finalX}px) translateY(0px)`,
-              transition: "transform 0.3s ease-out",
-            };
-
-            const spinStart = performance.now();
-            const singlePhaseEase = (t) => {
-              t = Math.min(Math.max(t, 0), 1);
-              return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
-            };
-
-            const animate = (currentTime) => {
-              const elapsed = currentTime - spinStart;
-              const progress = Math.min(elapsed / TOTAL_SPIN_MS, 1);
-
-              const easedProgress = singlePhaseEase(progress);
-
-              const distanceTraveled = totalDistance * easedProgress;
-              let currentX = START_X - distanceTraveled;
-
-              while (currentX < -REEL_LENGTH + START_X) {
-                currentX += REEL_LENGTH;
-              }
-              const steps = Math.floor(distanceTraveled / ITEM_WIDTH);
-              const centerIndex =
-                (currentCenterIndex + steps) % this.unboxReels[index + 1].length;
-              this.unboxReelsPos = centerIndex;
-
-              // smooth the displayed index using a simple lerp so the winner
-              // value flows nicely instead of jumping each frame
-              const smoothing = 0.1; // lower = more smoothing
-              this.displayCenterIndex +=
-                (centerIndex - this.displayCenterIndex) * smoothing;
-              const displayIdx = Math.round(this.displayCenterIndex);
-              this.winner = this.unboxReels[index + 1][displayIdx];
-
-              if (progress >= 1) {
-                // Spin math is done — Reel must see "finished" now (not after setTimeout), or
-                // spinPhase stays "spinning" through the settle delay and Reel.vue styles break.
-                this.spinPhase = "finished";
-
-                // final settle: move exactly to finalX with a smooth ease
-                finalX = finalX - 40;
-                this.unboxReelStyle = {
-                  transform: `translateX(${finalX}px) translateY(0px)`,
-                  transition: "transform 0.3s ease-out",
-                };
-
-                // Reveal winner text / emit after the slow settle for suspense
-                setTimeout(() => {
-                  cancelAnimationFrame(this.unboxReelsPosRepeater);
-                  this.winner = this.unboxReels[index + 1][winnerIndex];
-                  this.finsihed_spinning = true;
-                  this.unboxRunning = false;
-                  this.$emit("complete", game.demo);
-                }, 3000);
-              } else {
-                // during spin, keep easing normally
-                // currentX = currentX - 20;
-                this.unboxReelStyle = {
-                  transform: `translateX(${currentX}px) translateY(0px)`,
-                  transition: "transform 0.3s ease-out",
-                };
-                this.animationFrameId = requestAnimationFrame(animate);
-              }
-            };
-
-            this.animationFrameId = requestAnimationFrame(animate);
+            const t = this.effectiveAnimationType;
+            if (t === 1) this._runSpinHellV1(index, game);
+            else if (t === 2) this._runSpinHellV2(index, game);
+            else if (t === 3) this._runSpinHellV3(index, game);
+            else this._runSpinHellV4(index, game);
           }
         }
       },
@@ -438,6 +813,10 @@ export default {
   beforeUnmount() {
     this.unboxRunning = false;
     clearTimeout(this.unboxReelsSpinTimeout);
+    if (this.winnerRevealHoldTimer) {
+      clearTimeout(this.winnerRevealHoldTimer);
+      this.winnerRevealHoldTimer = null;
+    }
     cancelAnimationFrame(this.unboxReelsPosRepeater);
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
