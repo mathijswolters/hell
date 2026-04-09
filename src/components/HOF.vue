@@ -79,11 +79,22 @@
             <!-- title start -->
             <div
               class="grid grid-cols-[repeat(14,minmax(0,1fr))] items-start h-[22px] w-full border-b border-solid border-[#620101]"
+              :class="tab === 'biggest_coinflip_win' ? 'gap-x-px' : 'gap-x-1'"
             >
               <div class="font-Rubik text-[#d7b7b7] text-sm font-semibold text-left pl-2">RANK</div>
-              <div class="col-span-2 text-left font-Rubik text-[#d7b7b7] text-sm font-semibold">
+              <div
+                v-if="tab !== 'biggest_coinflip_win'"
+                class="col-span-2 text-left font-Rubik text-[#d7b7b7] text-sm font-semibold">
                 PLAYER NAME
               </div>
+              <div
+                v-if="tab === 'biggest_coinflip_win'"
+                class="col-span-4 flex items-center justify-between px-2 font-Rubik text-[#d7b7b7] text-sm font-semibold uppercase tracking-wide"
+              >
+                <span class="font-Rubik text-[#d7b7b7] text-sm font-semibold uppercase tracking-wide">WINNER</span>
+                <span class="mx-auto font-Rubik text-[#d7b7b7] text-sm font-semibold uppercase tracking-wide">LOSER</span>
+              </div>
+
               <div
                 class="font-Rubik text-[#d7b7b7] text-sm font-semibold text-left"
                 :class="{
@@ -97,8 +108,10 @@
                   'col-span-4':
                     tab === 'most_double_downs' ||
                     tab === 'highest_double_down_win_streak' ||
-                    tab === 'biggest_jackpot_win',
+                    tab === 'biggest_jackpot_win' ||
+                    tab === 'biggest_coinflip_win',
                   'col-span-6':
+                    tab !== 'biggest_coinflip_win' &&
                     tab !== 'biggest_jackpot_win' &&
                     tab !== 'highest_coinflip_win_streak' &&
                     tab !== 'highest_coinflip_loss_streak' &&
@@ -135,6 +148,7 @@
               <div
                 class="font-Rubik text-[#d7b7b7] text-sm font-semibold text-center"
                 :class="{
+                  'col-span-1': tab === 'biggest_coinflip_win',
                   'col-span-2':
                     tab === 'highest_coinflip_win_streak' ||
                     tab === 'highest_coinflip_loss_streak' ||
@@ -199,6 +213,7 @@
                 class="font-Rubik text-[#d7b7b7] text-sm font-semibold text-center"
                 v-if="tab != 'biggest_pussy'"
                 :class="{
+                  'col-span-1': tab === 'biggest_coinflip_win',
                   'col-span-2':
                     tab === 'highest_coinflip_win_streak' ||
                     tab === 'highest_coinflip_loss_streak' ||
@@ -305,28 +320,37 @@
               <div
                 v-for="item in paginatedData"
                 :key="item._id"
-                class="w-full h-[48px] min-h-[48px] flex items-center justify-center p-px rounded-sm"
+                class="w-full h-[48px] min-h-[48px] flex items-center justify-center py-px pr-px rounded-sm border-l-4 border-solid border-l-[#04AB53]"
                 :class="{
                   'bg-[linear-gradient(90deg,#EFBF04_25%,#580101_100%)]': item.rank === 1,
                   'bg-[linear-gradient(90deg,#C4C4C4_25%,#580101_100%)]': item.rank === 2,
                   'bg-[linear-gradient(90deg,#A87A23_25%,#580101_100%)]': item.rank === 3,
-                  'bg-[linear-gradient(90deg,#A01A1B_0%,#580101_100%)]': item.rank > 3
+                  'bg-[linear-gradient(90deg,#A01A1B_0%,#580101_100%)]': item.rank > 3,
+                  'border-t border-r border-b border-t-[#EFBF04] border-r-[#EFBF04] border-b-[#EFBF04]':
+                    item.rank === 1,
+                  'border-t border-r border-b border-t-[#C4C4C4] border-r-[#C4C4C4] border-b-[#C4C4C4]':
+                    item.rank === 2,
+                  'border-t border-r border-b border-t-[#CD7F32] border-r-[#CD7F32] border-b-[#CD7F32]':
+                    item.rank === 3
                 }"
               >
                 <div
-                  class="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-x-1 items-center w-full h-full rounded-sm"
-                  :class="{
-                    'bg-[linear-gradient(90deg,#750A0A_0%,#570000_100%)]': !checkUser(item),
-                    'bg-[#240101]': checkUser(item)
-                  }"
+                  class="grid grid-cols-[repeat(14,minmax(0,1fr))] items-center w-full h-full rounded-sm"
+                  :class="[
+                    tab === 'biggest_coinflip_win' ? 'gap-x-px' : 'gap-x-1',
+                    {
+                      'bg-[linear-gradient(90deg,#750A0A_0%,#570000_100%)]': !checkUser(item),
+                      'bg-[#240101]': checkUser(item)
+                    }
+                  ]"
                 >
                   <div
-                    class="font-Rubik text-[#d7b7b7] text-sm font-semibold relative text-left pl-4"
+                    class="font-Rubik text-sm font-semibold relative text-left pl-4"
                     :class="{
-                      'text-[#EFBF04]': item.rank === 1,
-                      'text-[#C4C4C4]': item.rank === 2,
-                      'text-[#A87A23]': item.rank === 3,
-                      'text-[#D7B7B7]': item.rank > 3
+                      'text-[#EFBF04] text-xl': item.rank === 1,
+                      'text-[#C4C4C4] text-xl': item.rank === 2,
+                      'text-[#A87A23] text-xl': item.rank === 3,
+                      'text-white': item.rank > 3
                     }"
                   >
                     <div
@@ -335,15 +359,88 @@
                     >
                       YOU
                     </div>
-                    #{{ item.rank }}
+                    <span class="inline-block relative pr-2">
+                      <span class="relative z-0">#{{ item.rank }}</span>
+                      <svg
+                        v-if="item.rank >= 1 && item.rank <= 3"
+                        class="pointer-events-none absolute -right-0.5 -top-1 z-10 h-2 w-2 text-white drop-shadow-[0_0_3px_rgba(255,255,255,0.95)]"
+                        viewBox="0 0 8 8"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path d="M4 0 L8 4 L4 8 L0 4 Z" />
+                      </svg>
+                    </span>
                   </div>
+                  <template v-if="tab === 'biggest_coinflip_win'">
+                    <div
+                      class="col-span-4 flex min-h-0 items-center border-r border-white/15 pr-1 font-Rubik text-sm font-semibold"
+                    >
+                      <div
+                        class="flex min-w-0 flex-[0.8] items-center justify-start gap-x-2"
+                        :class="{
+                          'text-[#EFBF04]': item.rank === 1,
+                          'text-[#C4C4C4]': item.rank === 2,
+                          'text-[#A87A23]': item.rank === 3,
+                          'text-white': item.rank > 3
+                        }"
+                      >
+                        <div class="relative h-8 w-8 shrink-0">
+                          <img
+                            v-lazy="item.avatar"
+                            class="h-8 w-8 rounded-sm object-cover"
+                            :alt="item.name"
+                          />
+                          <img
+                            :src="`/img/coins/${item.winner_coin || 'heaven'}.png`"
+                            class="absolute [top:9px] [left:24px] h-3.5 w-3.5 rounded-full ring-1 ring-[#FF3435]/90"
+                            alt=""
+                          />
+                        </div>
+                        <span
+                          class="min-w-0 truncate text-sm font-bold"
+                          :class="{
+                            'drop-shadow-[0_0_10px_rgba(239,191,4,0.55)]': item.rank === 1,
+                            'drop-shadow-[0_0_8px_rgba(196,196,196,0.4)]': item.rank === 2,
+                            'drop-shadow-[0_0_8px_rgba(168,122,35,0.4)]': item.rank === 3
+                          }"
+                          >{{ item.name }}</span
+                        >
+                      </div>
+                      <div
+                        class="flex shrink-0 items-center justify-start pr-1.5 mr-5 font-Rubik text-[10px] font-bold uppercase tracking-wide text-white"
+                      >
+                        VS
+                      </div>
+                      <div
+                        class="flex min-w-0 flex-[1.2] items-center justify-start gap-x-2 text-[#b8a8a8]"
+                      >
+                        <div class="relative h-8 w-8 shrink-0">
+                          <img
+                            v-lazy="item.loser_avatar || item.avatar"
+                            class="h-8 w-8 rounded-sm object-cover grayscale opacity-[0.78]"
+                            :alt="item.loser_name || ''"
+                          />
+                          <img
+                            :src="`/img/coins/${item.loser_coin || 'hell'}.png`"
+                            class="absolute [top:9px] [left:24px]  -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full opacity-95"
+                            alt=""
+                          />
+                        </div>
+                        <span class="min-w-0 truncate text-xs font-semibold text-[#c4b4b4]">{{
+                          item.loser_name || '—'
+                        }}</span>
+                      </div>
+                    </div>
+                  </template>
                   <div
-                    class="col-span-2 text-left font-Rubik text-[#d7b7b7] text-sm font-semibold border-r-2 border-solid flex items-center gap-x-2 h-[calc(100%-12px)]"
+                    v-else
+                    class="col-span-2 text-left font-Rubik text-sm font-semibold border-r-2 border-solid flex items-center gap-x-2 h-[calc(100%-12px)]"
                     :class="{
                       'border-[#EFBF04] text-[#EFBF04]': item.rank === 1,
                       'border-[#C4C4C4] text-[#C4C4C4]': item.rank === 2,
                       'border-[#A87A23] text-[#A87A23]': item.rank === 3,
-                      'border-[rgb(255,52,53,0.3)] text-[#D7B7B7]': item.rank > 3
+                      'border-[rgb(255,52,53,0.3)] text-white': item.rank > 3
                     }"
                   >
                     <img v-lazy="item.avatar" class="w-8 h-8 rounded-sm object-cover" />
@@ -359,11 +456,14 @@
                         tab === 'most_won' ||
                         tab === 'most_lost' ||
                         tab === 'most_profit',
+                      'col-span-3': tab === 'biggest_coinflip_win',
                       'col-span-4':
                         tab === 'most_double_downs' ||
                         tab === 'highest_double_down_win_streak' ||
-                        tab === 'biggest_jackpot_win',
+                        tab === 'biggest_jackpot_win' ||
+                        tab === 'biggest_coinflip_win',
                       'col-span-6':
+                        tab !== 'biggest_coinflip_win' &&
                         tab !== 'biggest_jackpot_win' &&
                         tab !== 'highest_coinflip_win_streak' &&
                         tab !== 'highest_coinflip_loss_streak' &&
@@ -395,9 +495,9 @@
                         }"
                       ></div>
                       <img
-                        v-for="item in item.items"
-                        :key="item.id"
-                        :src="item.image"
+                        v-for="weapon in item.items"
+                        :key="weapon._id"
+                        :src="weapon.image"
                         class="max-w-9"
                       />
                     </div>
@@ -442,6 +542,7 @@
                   <div
                     class="font-Rubik text-[#d7b7b7] text-sm font-semibold flex gap-x-px justify-center items-center text-nowrap"
                     :class="{
+                      'col-span-1': tab === 'biggest_coinflip_win',
                       'col-span-2':
                         tab === 'highest_coinflip_win_streak' ||
                         tab === 'highest_coinflip_loss_streak' ||
@@ -494,7 +595,10 @@
                         'text-[#EFBF04]': item.rank === 1,
                         'text-[#C4C4C4]': item.rank === 2,
                         'text-[#A87A23]': item.rank === 3,
-                        'text-[#D7B7B7]': item.rank > 3
+                        'text-white':
+                          item.rank > 3 &&
+                          (tab === 'biggest_coinflip_win' || tab === 'biggest_jackpot_win'),
+                        'text-[#D7B7B7]': item.rank > 3 && tab !== 'biggest_coinflip_win' && tab !== 'biggest_jackpot_win'
                       }"
                       >${{
                         Number(
@@ -753,8 +857,11 @@
                       tab == 'biggest_pussy'
                     "
                   >
-                    {{ formatDateTime(item.date).relativeTime }} &nbsp;
-                    {{ formatDateTime(item.date).formattedDate }}
+                    {{
+                      tab === 'biggest_coinflip_win'
+                        ? formatDateTime(item.date).hofLine
+                        : `${formatDateTime(item.date).relativeTime} \u00a0 ${formatDateTime(item.date).formattedDate}`
+                    }}
                   </div>
                   <div
                     v-if="tab === 'biggest_coinflip_win' || tab === 'biggest_jackpot_win'"
@@ -771,19 +878,117 @@
               <!-- the user rank  -->
               <div
                 v-if="userData && !user_in_page"
-                class="w-full h-[48px] min-h-[48px] flex items-center justify-center p-px rounded-sm bg-[linear-gradient(90deg,#A01A1B_0%,#580101_100%)]"
+                class="w-full h-[48px] min-h-[48px] flex items-center justify-center p-px rounded-sm border-l-4 border-solid border-l-[#04AB53]"
+                :class="{
+                  'bg-[linear-gradient(90deg,#EFBF04_25%,#580101_100%)]': userData.rank === 1,
+                  'bg-[linear-gradient(90deg,#C4C4C4_25%,#580101_100%)]': userData.rank === 2,
+                  'bg-[linear-gradient(90deg,#A87A23_25%,#580101_100%)]': userData.rank === 3,
+                  'bg-[linear-gradient(90deg,#A01A1B_0%,#580101_100%)]': userData.rank > 3,
+                  'border-t border-r border-b border-t-[#EFBF04] border-r-[#EFBF04] border-b-[#EFBF04]':
+                    userData.rank === 1,
+                  'border-t border-r border-b border-t-[#C4C4C4] border-r-[#C4C4C4] border-b-[#C4C4C4]':
+                    userData.rank === 2,
+                  'border-t border-r border-b border-t-[#CD7F32] border-r-[#CD7F32] border-b-[#CD7F32]':
+                    userData.rank === 3
+                }"
               >
                 <div
-                  class="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-x-1 items-center w-full h-full rounded-sm bg-[#240101]"
+                  class="grid grid-cols-[repeat(14,minmax(0,1fr))] items-center w-full h-full rounded-sm bg-[#240101]"
+                  :class="tab === 'biggest_coinflip_win' ? 'gap-x-px' : 'gap-x-1'"
                 >
                   <div
-                    class="font-Rubik text-[#d7b7b7] text-sm font-semibold relative text-left pl-4"
+                    class="font-Rubik text-sm font-semibold relative text-left pl-4"
+                    :class="{
+                      'text-[#EFBF04]': userData.rank === 1,
+                      'text-[#C4C4C4]': userData.rank === 2,
+                      'text-[#A87A23]': userData.rank === 3,
+                      'text-white': userData.rank > 3
+                    }"
                   >
                     <div class="absolute right-1 font-bold font-Rubik text-sm text-white">YOU</div>
-                    #{{ userData.rank }}
+                    <span class="inline-block relative pr-2">
+                      <span class="relative z-0">#{{ userData.rank }}</span>
+                      <svg
+                        v-if="userData.rank >= 1 && userData.rank <= 3"
+                        class="pointer-events-none absolute -right-0.5 -top-1 z-10 h-2 w-2 text-white drop-shadow-[0_0_3px_rgba(255,255,255,0.95)]"
+                        viewBox="0 0 8 8"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path d="M4 0 L8 4 L4 8 L0 4 Z" />
+                      </svg>
+                    </span>
                   </div>
+                  <template v-if="tab === 'biggest_coinflip_win'">
+                    <div
+                      class="col-span-4 flex min-h-0 items-center border-r border-white/15 pr-1 font-Rubik text-sm font-semibold"
+                    >
+                      <div
+                        class="flex min-w-0 flex-1 items-center justify-end gap-x-2"
+                        :class="{
+                          'text-[#EFBF04]': userData.rank === 1,
+                          'text-[#C4C4C4]': userData.rank === 2,
+                          'text-[#A87A23]': userData.rank === 3,
+                          'text-white': userData.rank > 3
+                        }"
+                      >
+                        <div class="relative h-8 w-8 shrink-0">
+                          <img
+                            v-lazy="userData.avatar"
+                            class="h-8 w-8 rounded-sm object-cover"
+                            :alt="userData.name"
+                          />
+                          <img
+                            :src="`/img/coins/${userData.winner_coin || 'heaven'}.png`"
+                            class="absolute [top:9px] [left:24px]  -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full ring-1 ring-[#FF3435]/90"
+                            alt=""
+                          />
+                        </div>
+                        <span
+                          class="min-w-0 truncate text-sm font-bold"
+                          :class="{
+                            'drop-shadow-[0_0_10px_rgba(239,191,4,0.55)]': userData.rank === 1,
+                            'drop-shadow-[0_0_8px_rgba(196,196,196,0.4)]': userData.rank === 2,
+                            'drop-shadow-[0_0_8px_rgba(168,122,35,0.4)]': userData.rank === 3
+                          }"
+                          >{{ userData.name }}</span
+                        >
+                      </div>
+                      <div
+                        class="flex shrink-0 items-center justify-center px-1.5 font-Rubik text-[10px] font-bold uppercase tracking-wide text-white"
+                      >
+                        VS
+                      </div>
+                      <div
+                        class="flex min-w-0 flex-1 items-center justify-start gap-x-2 text-[#b8a8a8]"
+                      >
+                        <div class="relative h-8 w-8 shrink-0">
+                          <img
+                            v-lazy="userData.loser_avatar || userData.avatar"
+                            class="h-8 w-8 rounded-sm object-cover grayscale opacity-[0.78]"
+                            :alt="userData.loser_name || ''"
+                          />
+                          <img
+                            :src="`/img/coins/${userData.loser_coin || 'hell'}.png`"
+                            class="absolute [top:9px] [left:24px]  -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full opacity-95"
+                            alt=""
+                          />
+                        </div>
+                        <span class="min-w-0 truncate text-xs font-semibold text-[#c4b4b4]">{{
+                          userData.loser_name || '—'
+                        }}</span>
+                      </div>
+                    </div>
+                  </template>
                   <div
-                    class="col-span-2 text-left font-Rubik text-[#d7b7b7] text-sm font-semibold border-r-2 border-solid flex items-center gap-x-2 h-[calc(100%-12px)] border-[rgb(255,52,53,0.3)]"
+                    v-else
+                    class="col-span-2 text-left font-Rubik text-sm font-semibold border-r-2 border-solid flex items-center gap-x-2 h-[calc(100%-12px)]"
+                    :class="{
+                      'border-[#EFBF04] text-[#EFBF04]': userData.rank === 1,
+                      'border-[#C4C4C4] text-[#C4C4C4]': userData.rank === 2,
+                      'border-[#A87A23] text-[#A87A23]': userData.rank === 3,
+                      'border-[rgb(255,52,53,0.3)] text-white': userData.rank > 3
+                    }"
                   >
                     <img v-lazy="userData.avatar" class="w-8 h-8 rounded-sm object-cover" />
                     {{ userData.name }}
@@ -798,11 +1003,13 @@
                         tab === 'most_won' ||
                         tab === 'most_lost' ||
                         tab === 'most_profit',
+                      'col-span-3': tab === 'biggest_coinflip_win',
                       'col-span-4':
                         tab === 'most_double_downs' ||
                         tab === 'highest_double_down_win_streak' ||
                         tab === 'biggest_jackpot_win',
                       'col-span-6':
+                        tab !== 'biggest_coinflip_win' &&
                         tab !== 'biggest_jackpot_win' &&
                         tab !== 'highest_coinflip_win_streak' &&
                         tab !== 'highest_coinflip_loss_streak' &&
@@ -828,9 +1035,9 @@
                         class="absolute right-0 h-full w-1/2 bg-[linear-gradient(270deg,#240101_0%,rgba(36,1,1,0)100%)]"
                       ></div>
                       <img
-                        v-for="item in userData.items"
-                        :key="item.id"
-                        :src="item.image"
+                        v-for="weapon in userData.items"
+                        :key="weapon._id"
+                        :src="weapon.image"
                         class="max-w-9"
                       />
                     </div>
@@ -869,6 +1076,7 @@
                   <div
                     class="font-Rubik text-[#d7b7b7] text-sm font-semibold flex gap-x-px justify-center items-center text-nowrap"
                     :class="{
+                      'col-span-1': tab === 'biggest_coinflip_win',
                       'col-span-2':
                         tab === 'highest_coinflip_win_streak' ||
                         tab === 'highest_coinflip_loss_streak' ||
@@ -889,6 +1097,21 @@
                         tab === 'biggest_pussy'
                     }"
                   >
+                    <img
+                      v-if="userData.rank === 1 && tab === 'biggest_coinflip_win'"
+                      src="../assets/img/cups/gold.png"
+                      class="w-6 h-6"
+                    />
+                    <img
+                      v-if="userData.rank === 2 && tab === 'biggest_coinflip_win'"
+                      src="../assets/img/cups/silver.png"
+                      class="w-6 h-6"
+                    />
+                    <img
+                      v-if="userData.rank === 3 && tab === 'biggest_coinflip_win'"
+                      src="../assets/img/cups/bronze.png"
+                      class="w-6 h-6"
+                    />
                     <span
                       v-if="
                         tab === 'biggest_coinflip_win' ||
@@ -899,7 +1122,19 @@
                         tab == 'highest_average_jackpot_amount' ||
                         tab === 'biggest_pussy'
                       "
-                      class="font-Rubik text-xs font-bold flex gap-x-px text-[#D7B7B7]"
+                      class="font-Rubik text-xs font-bold flex gap-x-px"
+                      :class="{
+                        'text-[#EFBF04]': userData.rank === 1,
+                        'text-[#C4C4C4]': userData.rank === 2,
+                        'text-[#A87A23]': userData.rank === 3,
+                        'text-white':
+                          userData.rank > 3 &&
+                          (tab === 'biggest_coinflip_win' || tab === 'biggest_jackpot_win'),
+                        'text-[#D7B7B7]':
+                          userData.rank > 3 &&
+                          tab !== 'biggest_coinflip_win' &&
+                          tab !== 'biggest_jackpot_win'
+                      }"
                       >${{
                         Number(
                           tab === 'biggest_coinflip_win'
@@ -1112,8 +1347,11 @@
                       tab == 'biggest_pussy'
                     "
                   >
-                    {{ formatDateTime(userData.date).relativeTime }} &nbsp;
-                    {{ formatDateTime(userData.date).formattedDate }}
+                    {{
+                      tab === 'biggest_coinflip_win'
+                        ? formatDateTime(userData.date).hofLine
+                        : `${formatDateTime(userData.date).relativeTime} \u00a0 ${formatDateTime(userData.date).formattedDate}`
+                    }}
                   </div>
                   <div
                     v-if="tab === 'biggest_coinflip_win' || tab === 'biggest_jackpot_win'"
@@ -1304,6 +1542,12 @@ export default {
             ],
             won_amount: 15401,
             game_id: 1,
+            loser_name: 'ILOVEBREAD',
+            loser_avatar:
+              'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+            loser_id: 999,
+            winner_coin: 'heaven',
+            loser_coin: 'hell',
             date: '2024-12-08T17:20'
           },
           {
@@ -1329,6 +1573,12 @@ export default {
             ],
             won_amount: 15400,
             game_id: 2,
+            loser_name: 'rival_two',
+            loser_avatar:
+              'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+            loser_id: 998,
+            winner_coin: 'heaven',
+            loser_coin: 'hell',
             date: '2024-12-08T19:20'
           },
           {
@@ -1354,6 +1604,12 @@ export default {
             ],
             won_amount: 1541,
             game_id: 3,
+            loser_name: 'opponent_3',
+            loser_avatar:
+              'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+            loser_id: 997,
+            winner_coin: 'heaven',
+            loser_coin: 'hell',
             date: '2024-12-08T20:00'
           },
           {
@@ -1379,6 +1635,12 @@ export default {
             ],
             won_amount: 15401,
             game_id: 1,
+            loser_name: 'opponent_4',
+            loser_avatar:
+              'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+            loser_id: 996,
+            winner_coin: 'heaven',
+            loser_coin: 'hell',
             date: '2024-11-03T17:20'
           },
           {
@@ -1397,6 +1659,12 @@ export default {
             ],
             won_amount: 15401,
             game_id: 5,
+            loser_name: 'opponent_5',
+            loser_avatar:
+              'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+            loser_id: 995,
+            winner_coin: 'heaven',
+            loser_coin: 'hell',
             date: '2024-12-08T17:20'
           },
           {
@@ -1415,6 +1683,12 @@ export default {
             ],
             won_amount: 15401,
             game_id: 6,
+            loser_name: 'opponent_6',
+            loser_avatar:
+              'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+            loser_id: 994,
+            winner_coin: 'heaven',
+            loser_coin: 'hell',
             date: '2024-12-08T17:20'
           },
           {
@@ -1433,6 +1707,12 @@ export default {
             ],
             won_amount: 15401,
             game_id: 7,
+            loser_name: 'opponent_7',
+            loser_avatar:
+              'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+            loser_id: 993,
+            winner_coin: 'heaven',
+            loser_coin: 'hell',
             date: '2024-12-08T17:20'
           },
           {
@@ -1451,6 +1731,12 @@ export default {
             ],
             won_amount: 15401,
             game_id: 8,
+            loser_name: 'opponent_8',
+            loser_avatar:
+              'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+            loser_id: 992,
+            winner_coin: 'heaven',
+            loser_coin: 'hell',
             date: '2024-12-08T17:20'
           },
           {
@@ -1469,6 +1755,12 @@ export default {
             ],
             won_amount: 15401,
             game_id: 9,
+            loser_name: 'opponent_9',
+            loser_avatar:
+              'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+            loser_id: 991,
+            winner_coin: 'heaven',
+            loser_coin: 'hell',
             date: '2024-12-08T17:20'
           },
           {
@@ -1487,6 +1779,12 @@ export default {
             ],
             won_amount: 15401,
             game_id: 10,
+            loser_name: 'opponent_10',
+            loser_avatar:
+              'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+            loser_id: 990,
+            winner_coin: 'heaven',
+            loser_coin: 'hell',
             date: '2024-12-08T17:20'
           }
         ],
@@ -2387,19 +2685,18 @@ export default {
       this.current_page = 1
     },
     formatDateTime(inputDate) {
-      if (!inputDate) return 'No Date'
+      if (!inputDate) {
+        return { relativeTime: '—', formattedDate: '—', hofLine: '—' }
+      }
 
       const now = new Date()
       const date = new Date(inputDate)
 
-      // Format the date as dd-MM-yyyy
-      const formattedDate = new Intl.DateTimeFormat('en-GB', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      }).format(date)
+      const day = String(date.getDate()).padStart(2, '0')
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const year = date.getFullYear()
+      const formattedDate = `${day}-${month}-${year}`
 
-      // Calculate time difference in milliseconds
       const timeDifference = Math.abs(now - date)
       const secondsAgo = Math.floor(timeDifference / 1000)
       const minutesAgo = Math.floor(secondsAgo / 60)
@@ -2407,7 +2704,6 @@ export default {
       const daysAgo = Math.floor(hoursAgo / 24)
       const weeksAgo = Math.floor(daysAgo / 7)
 
-      // Determine relative time
       let relativeTime
       if (secondsAgo < 60) {
         relativeTime = `${secondsAgo}s ago`
@@ -2422,8 +2718,9 @@ export default {
       }
 
       return {
-        relativeTime: relativeTime,
-        formattedDate: formattedDate
+        relativeTime,
+        formattedDate,
+        hofLine: `${formattedDate} | ${relativeTime}`
       }
     },
     changePage(page) {
@@ -2434,7 +2731,15 @@ export default {
     checkUser(item) {
       if (item._id === this.user._id && item.name === this.user.name) {
         return true
-      } else return false
+      }
+      if (
+        this.tab === 'biggest_coinflip_win' &&
+        item.loser_id === this.user._id &&
+        item.loser_name === this.user.name
+      ) {
+        return true
+      }
+      return false
     },
     updatePagination() {
       this.current_page = 1
@@ -2453,17 +2758,33 @@ export default {
       return Math.ceil(this.HOF[this.tab].length / this.rows_per_page)
     },
     userData() {
-      const user = this.HOF[this.tab]?.find(
+      const list = this.HOF[this.tab] || []
+      const asWinner = list.find(
         (item) => item._id === this.user._id && item.name === this.user.name
       )
-
-      // Return the user or false if not found
-      return user || false
+      if (asWinner) return asWinner
+      if (this.tab === 'biggest_coinflip_win') {
+        return (
+          list.find(
+            (item) =>
+              item.loser_id === this.user._id && item.loser_name === this.user.name
+          ) || false
+        )
+      }
+      return false
     },
     user_in_page() {
-      return this.paginatedData.some(
-        (item) => item._id === this.user._id && item.name === this.user.name
-      )
+      return this.paginatedData.some((item) => {
+        if (item._id === this.user._id && item.name === this.user.name) return true
+        if (
+          this.tab === 'biggest_coinflip_win' &&
+          item.loser_id === this.user._id &&
+          item.loser_name === this.user.name
+        ) {
+          return true
+        }
+        return false
+      })
     },
     paginatedData() {
       const start = (this.current_page - 1) * this.rows_per_page

@@ -114,69 +114,85 @@
           </div>
           <div
             v-else-if="message.type == 'winning'"
-            class="flex w-full px-2 items-center justify-between"
+            class="w-full flex flex-col"
+          >
+            <div
+              class="h-[26px] w-full flex items-center justify-center gap-1 font-Rubik font-extrabold text-[10px] uppercase tracking-wide text-white"
+              :class="{
+                'bg-[#8F0A0A]': message.game == 'coinflip',
+                'bg-[#9E640D]': message.game == 'jackpot'
+              }"
+            >
+              <span class="text-xs font-bold">BIG WIN ON</span>
+              <img
+                :src="message.game == 'jackpot' ? '/src/assets/img/coins/jackpot.png' : '/src/assets/img/coins/coinflip.png'"
+                class="w-3 h-3 rounded-full"
+              />
+              <span class="text-xs font-bold">{{ message.game }}</span>
+            </div>
+            <div
+              class="flex w-full px-2 items-center justify-between"
             :class="{
               'bg-[#620101] h-[50px] gap-1 ': message.game == 'coinflip',
               'bg-[#6E3005] pt-2 py-5 ': message.game == 'jackpot'
             }"
           >
-            <div
-              class="flex items-center"
-              :class="{
-                'gap-1 ': message.game == 'coinflip',
-                'gap-0 ': message.game == 'jackpot'
-              }"
-            >
-              <div
-                class="min-w-[2rem] w-[2rem] h-[2rem] rounded-sm bg-no-repeat bg-center bg-cover relative"
-                :style="{
-                  backgroundImage: `url(${message.user.avatar})`
-                }"
-              >
-                <div class="absolute flex items-center h-full -right-2">
+            <div class="flex min-w-0 flex-col gap-0.5">
+              <div class="flex items-center gap-1">
+                <div
+                  class="min-w-[2rem] w-[2rem] h-[2rem] rounded-sm bg-no-repeat bg-center bg-cover relative"
+                  :style="{
+                    backgroundImage: `url(${message.user.avatar})`
+                  }"
+                >
+                  <div class="absolute flex items-center h-full -right-2">
+                    <img
+                      v-if="message.game == 'coinflip' && message.coin == 'heaven'"
+                      src="../assets/img/coins/heaven.png"
+                      class="w-5 h-5"
+                    />
+                    <img
+                      v-if="message.game == 'coinflip' && message.coin == 'hell'"
+                      src="../assets/img/coins/hell.png"
+                      class="w-5 h-5"
+                    />
+                  </div>
+                </div>
+                <div class="ml-2 flex items-center font-Rubik text-white font-bold text-sm gap-1 min-w-0">
                   <img
-                    v-if="message.game == 'coinflip' && message.coin == 'heaven'"
-                    src="../assets/img/coins/heaven.png"
-                    class="w-5 h-5"
+                    v-if="message.user.rank"
+                    :src="`/img/ranks/${message.user.rank}.png`"
+                    class="max-h-[20px]"
                   />
-                  <img
-                    v-if="message.game == 'coinflip' && message.coin == 'hell'"
-                    src="../assets/img/coins/hell.png"
-                    class="w-5 h-5"
-                  />
+                  <span class="truncate">{{ message.user.name }}</span>
                 </div>
               </div>
-              <span
-                class="flex relative items-center ml-2 font-Rubik text-white font-bold text-sm gap-1"
-              >
-                <img
-                  v-if="message.user.rank"
-                  :src="`/img/ranks/${message.user.rank}.png`"
-                  class="max-h-[20px]"
-                />
-                {{ message.user.name }}
-                <div
-                  v-if="message.game == 'jackpot'"
-                  class="absolute w-full whitespace-nowrap top-full mt-0.5 text-white/65 font-Rubik font-bold text-xs"
-                >
-                  {{ message.chance }}% Chance
-                </div>
+              <div class="flex items-center font-Rubik font-bold text-sm gap-1 whitespace-nowrap">
+                <span class="text-white">WON</span>
                 <span
-                  class="flex items-center font-Rubik font-bold text-sm gap-1 whitespace-nowrap"
                   :class="{
                     'text-[#04AB53]': message.game == 'coinflip',
                     'text-[#FEBD11]': message.game == 'jackpot'
                   }"
-                >
-                  WON
-                  {{
+                  >
+                  ${{
                     Number(message.ammount).toLocaleString(undefined, {
                       maximumFractionDigits: 0,
                       minimumFractionDigits: 0
                     })
-                  }}
-                </span>
-              </span>
+                  }}</span
+                >
+                <span class="text-white" v-if="message.game == 'coinflip'">FROM</span>
+                <img
+                  v-if="message.game == 'coinflip'"
+                  :src="`/img/coins/${message.coin || 'hell'}.png`"
+                  class="w-3.5 h-3.5 rounded-full"
+                />
+                <span class="text-white" v-if="message.game == 'coinflip'">COINFLIP</span>
+                <span class="text-white" v-if="message.game == 'jackpot'"
+                  >WITH <span class="text-opacity-65">{{ message.chance }}%</span> CHANCE</span
+                >
+              </div>
             </div>
 
             <button
@@ -188,6 +204,7 @@
             >
               VIEW
             </button>
+          </div>
           </div>
           <div v-else class="w-full flex gap-[0.5rem] p-2">
             <UserImage :user="message.user" />
