@@ -339,6 +339,179 @@
         </button>
       </div>
     </div>
+    <div class="support-cta" ref="supportCta">
+      <img
+        v-if="!showChatRoomsPopup"
+        src="../assets/img/support_chat.png"
+        alt="Open support chat rooms"
+        class="w-[100px] h-[105px] cursor-pointer"
+        @click="openChatRoomsPopup"
+      />
+      <button
+        v-else
+        type="button"
+        class="support-toggle-btn"
+        @click="closeChatRoomsPopup"
+        aria-label="Close support chat rooms"
+      >
+        <svg viewBox="0 0 24 24" fill="none" class="w-6 h-6">
+          <path
+            d="M6 9L12 15L18 9"
+            stroke="white"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+
+      <div
+        v-if="showChatRoomsPopup"
+        ref="chatRoomsPopup"
+        class="support-chat-popup w-[340px] rounded-lg bg-[#310000] p-4 border border-[#5c0000]"
+      >
+        <template v-if="!selectedChatRoom">
+          <div class="mb-4 flex items-center justify-between">
+            <h4 class="text-[#d7b7b7] text-lg font-semibold font-['Rubik']">Chats</h4>
+            <div class="flex items-center gap-2">
+              <button class="bg-[#04ab53] text-white px-3 py-2 rounded text-xs font-extrabold hover:opacity-90 transition">CREATE NEW</button>
+              <button
+                class="text-[#d7b7b7] text-xl leading-none hover:text-white transition"
+                @click="closeChatRoomsPopup"
+              >
+                x
+              </button>
+            </div>
+          </div>
+
+          <div class="max-h-[560px] overflow-y-auto pr-1 space-y-3">
+            <button
+              v-for="room in chatRooms"
+              :key="room.id"
+              type="button"
+              @click="openChatRoomDetails(room)"
+              :class="[
+                'w-full rounded-lg p-2 flex items-center gap-3 transition text-left',
+                room.completed ? 'bg-[#240101]' : 'bg-[#5c0000] hover:bg-[#240101]'
+              ]"
+            >
+              <img :src="room.avatar" :alt="room.name" class="w-8 h-8 rounded" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1">
+                  <span class="text-white text-sm font-bold font-['Rubik'] truncate">{{ room.name }}</span>
+                  <span class="text-white text-sm font-bold font-['Rubik']">•</span>
+                  <span class="text-white text-sm font-bold font-['Rubik']">{{ room.time }}</span>
+                </div>
+                <p class="text-[#d7b7b7] text-sm font-medium font-['Rubik'] mt-1 truncate">
+                  {{ room.preview }}
+                </p>
+              </div>
+              <span
+                v-if="room.completed"
+                class="bg-[#04ab53] text-white px-1 py-2 rounded text-xs font-extrabold font-['Rubik'] hover:opacity-90 transition"
+              >
+                COMPLETE
+              </span>
+            </button>
+          </div>
+        </template>
+
+        <template v-else>
+          <div class="mb-3 flex items-center justify-between">
+            <button
+              type="button"
+              class="text-[#d7b7b7] text-sm font-semibold hover:text-white transition"
+              @click="backToChatRooms"
+            >
+              ← Go back to Chats
+            </button>
+            <button
+              class="text-[#d7b7b7] text-xl leading-none hover:text-white transition"
+              @click="closeChatRoomsPopup"
+            >
+              x
+            </button>
+          </div>
+
+          <div class="rounded-lg bg-[#5C000080] p-3 mb-3">
+            <div class="text-white text-sm font-bold font-['Rubik']">Admin</div>
+            <p class="mt-1 text-[#d7b7b7] text-sm font-medium font-['Rubik']">
+              Before contacting our Live Support agents, please review the FAQ page. Your issue or
+              question may already be addressed there, providing you with a quicker solution.
+            </p>
+          </div>
+
+          <div class="max-h-[320px] overflow-y-auto pr-1 space-y-2">
+            <div
+              v-for="(detail, index) in selectedChatRoom.detailMessages"
+              :key="`detail-${index}`"
+            >
+              <div v-if="isFirstSupportMessage(index)" class="mb-2 flex items-center gap-1 justify-center">
+                <img :src="selectedChatRoom.avatar" :alt="selectedChatRoom.name" class="w-5 h-5 rounded-sm" />
+                <span class="text-white text-xs font-bold font-['DM_Sans']">{{ selectedChatRoom.name }}</span>
+                <span class="text-white/50 text-xs font-medium font-['DM_Sans']">
+                  joined the conversation
+                </span>
+              </div>
+              <div
+                :class="[
+                  'rounded-lg p-2 max-w-[88%]',
+                  detail.sender === 'You'
+                    ? 'bg-[#5C0000] ml-auto mr-0'
+                    : 'bg-[#5C000080] ml-0 mr-auto'
+                ]"
+              >
+              <div
+                :class="[
+                  'flex items-start gap-2 flex-row text-left',
+                ]"
+              >
+                <img
+                  :src="detail.sender === 'You' ? currentUserAvatar : selectedChatRoom.avatar"
+                  :alt="detail.sender"
+                  class="w-8 h-8 rounded"
+                />
+                <div class="min-w-0">
+                  <span class="text-white text-sm font-bold font-['Rubik']">{{ detail.sender }}:  </span>
+                  <span class="text-[#d7b7b7] text-sm font-medium font-['Rubik'] break-words">
+                    {{ detail.text }}
+                  </span>
+                </div>
+              </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-if="selectedChatRoom.supportTyping"
+            class="mt-2 flex items-center gap-1"
+          >
+            <img :src="selectedChatRoom.avatar" :alt="selectedChatRoom.name" class="w-5 h-5 rounded-sm" />
+            <span class="text-white text-xs font-bold font-['DM_Sans']">{{ selectedChatRoom.name }}</span>
+            <span class="text-white/50 text-xs font-medium font-['DM_Sans']">is typing...</span>
+          </div>
+
+          <div class="mt-3 flex items-center gap-2 rounded-lg bg-[#240101] p-2">
+            <input
+              v-model="supportDetailMessage"
+              type="text"
+              :disabled="selectedChatRoom.completed"
+              class="flex-1 bg-transparent placeholder:text-[#D7B7B7] font-Rubik text-[14px] focus:outline-none text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              :placeholder="selectedChatRoom.completed ? 'This chat room is completed' : 'Enter your message...'"
+              @keyup.enter="sendSupportRoomMessage"
+            />
+            <button
+              type="button"
+              class="h-[2rem] px-[0.75rem] bg-[#FF3435] text-white font-Rubik font-extrabold text-[12px] rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="selectedChatRoom.completed"
+              @click="sendSupportRoomMessage"
+            >
+              SEND
+            </button>
+          </div>
+        </template>
+      </div>
+    </div>
   </div>
 </template>
 <script>
@@ -364,6 +537,115 @@ export default {
         'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSY-iP-czPusnPWfMuxqknkMABLAnmLI6iUxA&s',
         'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQAZLAACY8aaZLPre_yB9KZ9vBWBMiEMBS6oA&s',
         'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROWYOi4SwhNBJRgXoCsU0wnw4rVQyj8U5OSg&s'
+      ],
+      showChatRoomsPopup: false,
+      selectedChatRoom: null,
+      supportDetailMessage: '',
+      chatRooms: [
+        {
+          id: 1,
+          name: 'John',
+          time: '1m',
+          preview: 'Welcome to general chat.',
+          avatar: 'https://imgcdn.stablediffusionweb.com/2024/9/15/5e3461df-7a8d-45dd-8ca7-73223594993f.jpg',
+          supportTyping: true,
+          completed: false,
+          detailMessages: [
+            { sender: 'You', text: 'I need help with my recent skin transaction.' },
+            { sender: 'John', text: 'Hello! Welcome to support chat.' },
+            { sender: 'John', text: 'Hi there DeanCortez!' },
+            { sender: 'You', text: 'I need help with my recent skin transaction.' },
+            { sender: 'John', text: 'Sure, please share your trade id.' },
+            { sender: 'You', text: 'Trade id is #94721.' }
+          ]
+        },
+        {
+          id: 2,
+          name: 'John',
+          time: '4m',
+          preview: 'How can we help you today?',
+          avatar: 'https://imgcdn.stablediffusionweb.com/2024/9/15/5e3461df-7a8d-45dd-8ca7-73223594993f.jpg',
+          supportTyping: false,
+          completed: true,
+          detailMessages: [
+            { sender: 'You', text: 'Any update on my case?' },
+            { sender: 'John', text: 'We reviewed your report.' },
+            { sender: 'John', text: 'Your ticket is completed. Thanks for reaching out.' },
+            { sender: 'You', text: 'Thank you for the quick support!' }
+          ]
+        },
+        {
+          id: 3,
+          name: 'John',
+          time: '9m',
+          preview: 'Share your best coinflip wins.',
+          avatar: 'https://imgcdn.stablediffusionweb.com/2024/9/15/5e3461df-7a8d-45dd-8ca7-73223594993f.jpg',
+          supportTyping: true,
+          completed: false,
+          detailMessages: [
+            { sender: 'You', text: 'I think my bet result was delayed.' },
+            { sender: 'John', text: 'How can I help with coinflip?' },
+            { sender: 'John', text: 'Thanks, we are checking server logs now.' }
+          ]
+        },
+        {
+          id: 4,
+          name: 'John',
+          time: '14m',
+          preview: 'Latest jackpot discussions.',
+          avatar: 'https://imgcdn.stablediffusionweb.com/2024/9/15/5e3461df-7a8d-45dd-8ca7-73223594993f.jpg',
+          supportTyping: false,
+          completed: true,
+          detailMessages: [
+            { sender: 'You', text: 'Can you confirm jackpot payout status?' },
+            { sender: 'John', text: 'This jackpot request has been resolved.' },
+            { sender: 'You', text: 'Great, thanks.' }
+          ]
+        },
+        {
+          id: 5,
+          name: 'John',
+          time: '1h',
+          preview: 'Official updates from the team.',
+          avatar: 'https://imgcdn.stablediffusionweb.com/2024/9/15/5e3461df-7a8d-45dd-8ca7-73223594993f.jpg',
+          supportTyping: true,
+          completed: false,
+          detailMessages: [
+            { sender: 'You', text: 'I cannot access my history page right now.' },
+            { sender: 'John', text: 'Please share more details.' },
+            { sender: 'You', text: 'I cannot access my history page right now.' }
+          ]
+        },
+        {
+          id: 6,
+          name: 'John',
+          time: '1h',
+          preview: 'Official updates from the team.',
+          avatar: 'https://imgcdn.stablediffusionweb.com/2024/9/15/5e3461df-7a8d-45dd-8ca7-73223594993f.jpg',
+          supportTyping: true,
+          completed: false,
+          detailMessages: [
+            { sender: 'You', text: 'Thank you, I will wait for update.' },
+            { sender: 'John', text: 'We are checking this for you now.' },
+            { sender: 'You', text: 'Thank you, I will wait for update.' },
+            { sender: 'John', text: 'We are checking this for you now.' },
+          ]
+        },
+        {
+          id: 7,
+          name: 'John',
+          time: '1h',
+          preview: 'Official updates from the team.',
+          avatar: 'https://imgcdn.stablediffusionweb.com/2024/9/15/5e3461df-7a8d-45dd-8ca7-73223594993f.jpg',
+          supportTyping: true,
+          completed: false,
+          detailMessages: [
+            { sender: 'You', text: 'Order id is 11823.' },
+            { sender: 'John', text: 'Can you share your order id?' },
+            { sender: 'You', text: 'Order id is 11823.' },
+            { sender: 'John', text: 'Perfect, support team is reviewing now.' }
+          ]
+        }
       ],
       messages: [
         {
@@ -585,6 +867,9 @@ export default {
       if (!id) return '—'
       const s = String(id)
       return s.length > 6 ? `Steam …${s.slice(-6)}` : `Steam ${s}`
+    },
+    currentUserAvatar() {
+      return getAuth()?.avatarUrl || defaultUserImg
     }
   },
 
@@ -596,6 +881,18 @@ export default {
       const dropdownElement = this.$refs.dropdownContainer
       if (dropdownElement && !dropdownElement.contains(event.target)) {
         this.chat_rules = false
+      }
+
+      const popupElement = this.$refs.chatRoomsPopup
+      const supportCtaElement = this.$refs.supportCta
+      if (
+        this.showChatRoomsPopup &&
+        popupElement &&
+        supportCtaElement &&
+        !popupElement.contains(event.target) &&
+        !supportCtaElement.contains(event.target)
+      ) {
+        this.closeChatRoomsPopup()
       }
     },
     stopPropagation(event) {
@@ -664,6 +961,38 @@ export default {
       this.newMessage += ` :${name}: `
       this.emojisPickerVisible = false
       this.$refs.inputField.focus()
+    },
+    openChatRoomsPopup() {
+      this.showChatRoomsPopup = true
+    },
+    closeChatRoomsPopup() {
+      this.selectedChatRoom = null
+      this.supportDetailMessage = ''
+      this.showChatRoomsPopup = false
+    },
+    openChatRoomDetails(room) {
+      this.selectedChatRoom = room
+      this.supportDetailMessage = ''
+    },
+    backToChatRooms() {
+      this.selectedChatRoom = null
+      this.supportDetailMessage = ''
+    },
+    sendSupportRoomMessage() {
+      if (!this.selectedChatRoom || this.selectedChatRoom.completed) return
+      const content = this.supportDetailMessage.trim()
+      if (!content) return
+
+      this.selectedChatRoom.detailMessages.push({
+        sender: 'You',
+        text: content
+      })
+      this.supportDetailMessage = ''
+    },
+    isFirstSupportMessage(index) {
+      if (!this.selectedChatRoom) return false
+      if (this.selectedChatRoom.detailMessages[index]?.sender === 'You') return false
+      return this.selectedChatRoom.detailMessages.findIndex((item) => item.sender !== 'You') === index
     }
   },
   mounted() {
@@ -686,5 +1015,35 @@ export default {
   /* width: 2rem; */
   background: #a60000;
   border-radius: 4px;
+}
+
+.support-cta {
+  position: absolute;
+  left: -110px;
+  bottom: 8px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.support-chat-popup {
+  position: absolute;
+  left: -240px;
+  bottom: calc(100% + 10px);
+  z-index: 30;
+}
+
+.support-toggle-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 9999px;
+  background: #ff4b4b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  transform: translateX(50px);
 }
 </style>
