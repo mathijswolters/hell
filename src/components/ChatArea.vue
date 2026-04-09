@@ -376,7 +376,7 @@
             <div class="flex items-center gap-2">
               <button
                 type="button"
-                class="bg-[#04ab53] text-white px-3 py-2 rounded text-xs font-extrabold hover:opacity-90 transition"
+                class="bg-[#04ab53] text-white px-3 py-2 rounded text-[16px] font-Rubik font-extrabold hover:opacity-90 transition"
                 @click="createNewChatRoom"
               >
                 CREATE NEW
@@ -390,35 +390,71 @@
             </div>
           </div>
 
-          <div class="h-[700px] overflow-y-auto pr-1 space-y-3">
-            <button
-              v-for="room in chatRooms"
-              :key="room.id"
-              type="button"
-              @click="openChatRoomDetails(room)"
-              :class="[
-                'w-full rounded-lg p-2 flex items-center gap-3 transition text-left',
-                room.completed ? 'bg-[#240101]' : 'bg-[#5c0000] hover:bg-[#240101]'
-              ]"
-            >
-              <img :src="room.avatar" :alt="room.name" class="w-8 h-8 rounded" />
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1">
-                  <span class="text-white text-sm font-bold font-['Rubik'] truncate">{{ room.name }}</span>
-                  <span class="text-white text-sm font-bold font-['Rubik']">•</span>
-                  <span class="text-white text-sm font-bold font-['Rubik']">{{ room.time }}</span>
-                </div>
-                <p class="text-[#d7b7b7] text-sm font-medium font-['Rubik'] mt-1 truncate">
-                  {{ room.preview }}
-                </p>
-              </div>
-              <span
-                v-if="room.completed"
-                class="bg-[#04ab53] text-white px-1 py-2 rounded text-xs font-extrabold font-['Rubik'] hover:opacity-90 transition"
+          <div class="flex h-[700px] flex-col">
+            <div class="min-h-0 flex-1 space-y-3 overflow-hidden pr-1">
+              <button
+                v-for="room in paginatedChatRooms"
+                :key="room.id"
+                type="button"
+                @click="openChatRoomDetails(room)"
+                :class="[
+                  'w-full rounded-lg p-2 flex items-center gap-3 transition text-left',
+                  room.completed ? 'bg-[#240101]' : 'bg-[#5c0000] hover:bg-[#240101]'
+                ]"
               >
-                COMPLETE
-              </span>
-            </button>
+                <img :src="room.avatar" :alt="room.name" class="w-8 h-8 rounded" />
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-1">
+                    <span class="text-white text-sm font-bold font-['Rubik'] truncate">{{ room.name }}</span>
+                    <span class="text-white text-sm font-bold font-['Rubik']">•</span>
+                    <span class="text-white text-sm font-bold font-['Rubik']">{{ room.time }}</span>
+                  </div>
+                  <p class="text-[#d7b7b7] text-sm font-medium font-['Rubik'] mt-1 truncate">
+                    {{ room.preview }}
+                  </p>
+                </div>
+                <span
+                  v-if="room.completed"
+                  class="bg-[#04ab53] text-white px-[7px] py-[4px] rounded-sm text-[16px] font-extrabold font-['Rubik'] hover:opacity-90 transition"
+                >
+                  COMPLETE
+                </span>
+              </button>
+            </div>
+            <div class="relative flex h-16 w-full flex-shrink-0 items-center justify-center">
+              <div class="absolute flex items-center gap-x-2">
+                <button
+                  type="button"
+                  :disabled="chatRoomsCurrentPage === 1"
+                  @click="changeChatRoomsPage(chatRoomsCurrentPage - 1)"
+                  class="flex items-center gap-x-2 stroke-white text-[#D7B7B7] font-semibold text-xs font-Rubik disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap"
+                >
+                  <ChevronDoubleLeftIcon class="w-4" /> Previous Page
+                </button>
+                <div class="flex w-28 items-center justify-center gap-x-2">
+                  <button
+                    v-for="page in chatRoomsVisiblePages"
+                    :key="page"
+                    type="button"
+                    @click="changeChatRoomsPage(page)"
+                    class="text-[#D7B7B7] font-bold text-base transition-all duration-200 font-Rubik"
+                    :class="{
+                      'text-white transition-all duration-200': chatRoomsCurrentPage === page
+                    }"
+                  >
+                    {{ page }}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  :disabled="chatRoomsCurrentPage === chatRoomsTotalPages || chatRoomsTotalPages === 0"
+                  @click="changeChatRoomsPage(chatRoomsCurrentPage + 1)"
+                  class="flex items-center gap-x-2 stroke-white text-[#D7B7B7] font-semibold text-xs font-Rubik disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap"
+                >
+                  Next Page <ChevronDoubleRightIcon class="w-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </template>
 
@@ -454,8 +490,8 @@
             >
               <div v-if="isFirstSupportMessage(index)" class="mb-2 flex items-center gap-1 justify-center">
                 <img :src="selectedChatRoom.avatar" :alt="selectedChatRoom.name" class="w-5 h-5 rounded-sm" />
-                <span class="text-white text-xs font-bold font-['DM_Sans']">{{ selectedChatRoom.name }}</span>
-                <span class="text-white/50 text-xs font-medium font-['DM_Sans']">
+                <span class="text-white text-xs font-bold font-['Rubik']">{{ selectedChatRoom.name }}</span>
+                <span class="text-white/50 text-xs font-medium font-['Rubik']">
                   joined the conversation
                 </span>
               </div>
@@ -494,7 +530,7 @@
           >
             <img :src="selectedChatRoom.avatar" :alt="selectedChatRoom.name" class="w-5 h-5 rounded-sm" />
             <span class="text-white text-xs font-bold font-['DM_Sans']">{{ selectedChatRoom.name }}</span>
-            <span class="text-white/50 text-xs font-medium font-['DM_Sans']">is typing...</span>
+            <span class="text-white/50 text-xs font-medium font-['Rubik']">is typing...</span>
           </div>
 
           <div class="mt-3 flex items-center gap-2 rounded-lg bg-[#240101] p-2">
@@ -521,7 +557,12 @@
   </div>
 </template>
 <script>
-import { SpeakerWaveIcon, DocumentTextIcon } from '@heroicons/vue/24/solid'
+import {
+  SpeakerWaveIcon,
+  DocumentTextIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon
+} from '@heroicons/vue/24/solid'
 import joypixels from 'emoji-toolkit'
 import UserImage from './UserImage.vue'
 import DiscordIcon from '../components/icons/Discord.vue'
@@ -531,6 +572,8 @@ export default {
   components: {
     SpeakerWaveIcon,
     DocumentTextIcon,
+    ChevronDoubleLeftIcon,
+    ChevronDoubleRightIcon,
     UserImage,
     DiscordIcon
   },
@@ -547,6 +590,9 @@ export default {
       showChatRoomsPopup: false,
       selectedChatRoom: null,
       supportDetailMessage: '',
+      chatRoomsCurrentPage: 1,
+      chatRoomsRowsPerPage: 8,
+      chatRoomsMaxVisiblePages: 5,
       chatRooms: [
         {
           id: 1,
@@ -936,6 +982,38 @@ export default {
     },
     currentUserAvatar() {
       return getAuth()?.avatarUrl || defaultUserImg
+    },
+    chatRoomsTotalPages() {
+      return Math.ceil(this.chatRooms.length / this.chatRoomsRowsPerPage)
+    },
+    paginatedChatRooms() {
+      const start = (this.chatRoomsCurrentPage - 1) * this.chatRoomsRowsPerPage
+      const end = start + this.chatRoomsRowsPerPage
+      return this.chatRooms.slice(start, end)
+    },
+    chatRoomsVisiblePages() {
+      const total = this.chatRoomsTotalPages
+      const max = this.chatRoomsMaxVisiblePages
+      const half = Math.floor(max / 2)
+      let start = Math.max(1, this.chatRoomsCurrentPage - half)
+      let end = Math.min(total, start + max - 1)
+
+      if (end - start < max - 1) {
+        start = Math.max(1, end - max + 1)
+      }
+
+      const pages = []
+      for (let i = start; i <= end; i++) {
+        pages.push(i)
+      }
+      return pages
+    }
+  },
+  watch: {
+    chatRoomsTotalPages(tp) {
+      if (tp > 0 && this.chatRoomsCurrentPage > tp) {
+        this.chatRoomsCurrentPage = tp
+      }
     }
   },
 
@@ -1031,6 +1109,11 @@ export default {
     openChatRoomsPopup() {
       this.showChatRoomsPopup = true
     },
+    changeChatRoomsPage(page) {
+      if (page >= 1 && page <= this.chatRoomsTotalPages) {
+        this.chatRoomsCurrentPage = page
+      }
+    },
     closeChatRoomsPopup() {
       this.selectedChatRoom = null
       this.supportDetailMessage = ''
@@ -1053,6 +1136,7 @@ export default {
       }
 
       this.chatRooms.unshift(newRoom)
+      this.chatRoomsCurrentPage = 1
       this.openChatRoomDetails(newRoom)
     },
     backToChatRooms() {
