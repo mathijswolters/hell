@@ -323,12 +323,12 @@
           <DocumentTextIcon class="fill-[#D7B7B7] w-[16px]" />
           Chat Rules
         </button>
-        <!-- <div
+        <div
           class="cursor-pointer flex item-center gap-[0.3rem] font-Rubik font-semibold text-[14px] text-white"
         >
           <img src="../assets/icons/rain.svg" />
           Tip Rain
-        </div> -->
+        </div>
         <button
           type="button"
           class="h-[2rem] px-[0.75rem] bg-[#FF3435] text-white font-Rubik font-extrabold text-[14px] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -368,7 +368,7 @@
       <div
         v-if="showChatRoomsPopup"
         ref="chatRoomsPopup"
-        class="support-chat-popup w-[340px] rounded-lg bg-[#310000] p-4 border border-[#5c0000]"
+        class="support-chat-popup w-[390px] h-[776px] rounded-lg bg-[#310000] p-4 border border-[#5c0000]"
       >
         <template v-if="!selectedChatRoom">
           <div class="mb-4 flex items-center justify-between">
@@ -390,7 +390,7 @@
             </div>
           </div>
 
-          <div class="max-h-[560px] overflow-y-auto pr-1 space-y-3">
+          <div class="h-[700px] overflow-y-auto pr-1 space-y-3">
             <button
               v-for="room in chatRooms"
               :key="room.id"
@@ -442,12 +442,12 @@
           <div class="rounded-lg bg-[#5C000080] p-3 mb-3">
             <div class="text-white text-sm font-bold font-['Rubik']">Admin</div>
             <p class="mt-1 text-[#d7b7b7] text-sm font-medium font-['Rubik']">
-              Before contacting our Live Support agents, please review the FAQ page. Your issue or
-              question may already be addressed there, providing you with a quicker solution.
+              Hi, could you explain the problem or question please?<br/>
+              Sorry if responses are delayed a bit, because this is a new site and still ironing our the kinks
             </p>
           </div>
 
-          <div class="max-h-[320px] overflow-y-auto pr-1 space-y-2">
+          <div class="h-[485px] overflow-y-auto pr-1 space-y-2">
             <div
               v-for="(detail, index) in selectedChatRoom.detailMessages"
               :key="`detail-${index}`"
@@ -563,6 +563,66 @@ export default {
             { sender: 'You', text: 'I need help with my recent skin transaction.' },
             { sender: 'John', text: 'Sure, please share your trade id.' },
             { sender: 'You', text: 'Trade id is #94721.' }
+          ]
+        },
+        {
+          id: 2,
+          name: 'John',
+          time: '4m',
+          preview: 'How can we help you today?',
+          avatar: 'https://imgcdn.stablediffusionweb.com/2024/9/15/5e3461df-7a8d-45dd-8ca7-73223594993f.jpg',
+          supportTyping: false,
+          completed: true,
+          detailMessages: [
+            { sender: 'You', text: 'Any update on my case?' },
+            { sender: 'John', text: 'We reviewed your report.' },
+            { sender: 'John', text: 'Your ticket is completed. Thanks for reaching out.' },
+            { sender: 'You', text: 'Thank you for the quick support!' }
+          ]
+        },
+        {
+          id: 2,
+          name: 'John',
+          time: '4m',
+          preview: 'How can we help you today?',
+          avatar: 'https://imgcdn.stablediffusionweb.com/2024/9/15/5e3461df-7a8d-45dd-8ca7-73223594993f.jpg',
+          supportTyping: false,
+          completed: true,
+          detailMessages: [
+            { sender: 'You', text: 'Any update on my case?' },
+            { sender: 'John', text: 'We reviewed your report.' },
+            { sender: 'John', text: 'Your ticket is completed. Thanks for reaching out.' },
+            { sender: 'You', text: 'Thank you for the quick support!' }
+          ]
+        },
+        {
+          id: 2,
+          name: 'John',
+          time: '4m',
+          preview: 'How can we help you today?',
+          avatar: 'https://imgcdn.stablediffusionweb.com/2024/9/15/5e3461df-7a8d-45dd-8ca7-73223594993f.jpg',
+          supportTyping: false,
+          completed: true,
+          detailMessages: [
+            { sender: 'You', text: 'Any update on my case?' },
+            { sender: 'John', text: 'We reviewed your report.' },
+            { sender: 'John', text: 'Your ticket is completed. Thanks for reaching out.' },
+            { sender: 'You', text: 'Thank you for the quick support!' }
+          ]
+        },
+        {
+          id: 2,
+          name: 'John',
+          time: '4m',
+          preview: 'How can we help you today?',
+          avatar: 'https://imgcdn.stablediffusionweb.com/2024/9/15/5e3461df-7a8d-45dd-8ca7-73223594993f.jpg',
+          supportTyping: false,
+          completed: true,
+          detailMessages: [
+            { sender: 'You', text: 'Any update on my case?' },
+            { sender: 'John', text: 'We reviewed your report.' },
+            { sender: 'John', text: 'Your ticket is completed. Thanks for reaching out.' },
+            { sender: 'You', text: 'Thank you for the quick support!' }
           ]
         },
         {
@@ -1051,7 +1111,7 @@ export default {
 
 .support-chat-popup {
   position: absolute;
-  left: -240px;
+  left: -300px;
   bottom: calc(100% + 10px);
   z-index: 30;
 }

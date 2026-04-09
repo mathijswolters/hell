@@ -360,7 +360,7 @@ import { XMarkIcon } from '@heroicons/vue/24/solid'
 import { CircleProgressBar } from 'circle-progress.vue'
 import ConfettiGenerator from 'confetti-js'
 import { mapActions } from 'vuex'
-import { authVersion, isLoggedIn } from '@/auth/session'
+import { authVersion, getAuth, isLoggedIn } from '@/auth/session'
 import { openModalFromModal } from '@/modalStore'
 import { startSteamOAuth } from '@/auth/steamLogin'
 export default {
@@ -388,7 +388,8 @@ export default {
       confetti: null,
       localSecondsLeft: this.secondsLeft,
       countdownInterval: null,
-      screenWidth: window.innerWidth
+      screenWidth: window.innerWidth,
+      winnerModalOpened: false
     }
   },
   watch: {
@@ -528,24 +529,40 @@ export default {
           document.getElementById('coin_container').style.transform = 'translateY(0px)'
         }, 4500)
         setTimeout(() => {
+          let winnerIndex = 0
           if (isRedWin) {
             if (this.battle.players[0].coin == 'hell') {
               this.updateResult(0, 1)
+              winnerIndex = 0
             } else {
               this.updateResult(1, 0)
+              winnerIndex = 1
             }
           } else {
             if (this.battle.players[0].coin == 'heaven') {
               this.updateResult(0, 1)
+              winnerIndex = 0
             } else {
               this.updateResult(1, 0)
+              winnerIndex = 1
             }
           }
+
+          const winnerPlayer = this.battle.players[winnerIndex]
           this.startConfetti()
           this.$store.dispatch('updateBattleState', {
             battleId: this.battle._id,
             newState: 'finished'
           })
+
+          if (winnerPlayer && !this.winnerModalOpened) {
+            this.winnerModalOpened = true
+            openModalFromModal('coinflip winner', {
+              winner: this.viewerAsWinnerPayload(winnerPlayer),
+              battle: this.battle,
+              wonAmount: this.battle?.total ?? 0
+            })
+          }
 
           this.isFlipping = false
           // if (this.battle.players[0].win) {
@@ -556,6 +573,16 @@ export default {
     },
     winnerModal() {
       this.$emit('winnerModal')
+    },
+    /** Demo: treat the viewer as the winner in the modal (name/avatar from session). */
+    viewerAsWinnerPayload(winnerPlayer) {
+      if (!winnerPlayer) return winnerPlayer
+      const auth = getAuth()
+      return {
+        ...winnerPlayer,
+        name: auth?.personaname || winnerPlayer.name,
+        avatar: auth?.avatarUrl || winnerPlayer.avatar
+      }
     },
     startCountdown(initialTime) {
       clearInterval(this.countdownInterval) // Clear existing countdown

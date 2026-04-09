@@ -1,164 +1,210 @@
 <template>
-  <div>
-    <DialogPanel
-      class="relative min-w-[543px] max-w-[543px] flex-col transform transition-all bg-[linear-gradient(180deg,rgba(83,0,0,0.8)_0%,rgba(46,1,1,0.8)_100%)] backdrop-blur-[200px] border-[#530000] border h-full"
-    >
-      <!-- Header Start -->
-      <DialogTitle class="flex justify-between w-full items-center">
-        <XMarkIcon
-          class="w-6 h-6 absolute right-4 top-4 cursor-pointer hover:scale-110 transition-transform ease-linear duration-150 fill-[#d7b7b7]"
-          @click="closeModal()"
-        />
-      </DialogTitle>
-      <div
-        class="flex items-center justify-center flex-col gap-2 w-full pt-8 bg-[linear-gradient(0deg,#420101,#420101),radial-gradient(58.01%_36.32%_at_50%_0%,rgba(255,216,9,0.3)_0%,rgba(66,1,1,0)_100%)]"
-      >
+  <div
+    class="w-[534px] h-[1032px] overflow-hidden relative bg-[radial-gradient(ellipse_36.32%_58.01%_at_50%_0%,rgba(255,216,9,0.3)_0%,#530000_100%)] border border-[#530000] backdrop-blur-[32px]"
+  >
+    <button class="absolute right-4 top-4 z-20" @click="closeModal">
+      <XMarkIcon class="w-6 h-6 fill-[#d7b7b7]" />
+    </button>
+
+    <div class="pt-16 pb-4 flex flex-col items-center">
+      <img :src="winnerAvatar" class="w-[124px] h-[124px] rounded-full object-cover" />
+      <div class="mt-4 flex items-center gap-2">
+        <span class="text-white text-4xl font-extrabold font-['Rubik'] uppercase">YOU'VE WON!</span>
+        <span class="text-[#04AB53] text-4xl font-extrabold font-['Rubik'] uppercase">
+          ${{ formattedWon }}
+        </span>
+      </div>
+    </div>
+
+    <div class="px-3 pb-3">
+      <div class="max-h-[420px] overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-1.5">
         <div
-          class="flex items-center justify-center w-full gap-x-2 font-Rubik font-extrabold text-white text-lg"
+          v-for="(item, index) in allBattleItems"
+          :key="`item-${index}-${item._id ?? item.id ?? ''}`"
+          class="p-2 bg-[#690405] flex flex-col justify-center items-center gap-2 min-h-[120px]"
         >
-          PLEASE SELECT SKINS
-          <div class="relative cursor-pointer info flex justify-center">
-            <img class="w-3 h-3" src="../../assets/icons/infoIcon.svg" />
-            <div
-              class="tooltip top-[calc(100%+0.5rem)] w-[595px] bg-[#8F0E0E] py-3 px-2 font-Rubik font-bold text-xs text-white text-left"
-            >
-              1. From your skins, select what you want to join the coinflip with, and meet the join
-              requirements.<br />
-              2. You will Receive a trade offer for your skins. Accept it in order to go through
-              with the coinflip.
+          <img :src="item.image" class="w-16 h-16 object-contain" />
+          <div class="flex flex-col justify-center items-center gap-0.5">
+            <div class="text-[#d7b7b7] text-sm font-semibold font-['Rubik'] leading-5 truncate max-w-[120px]">
+              {{ item.name }}
+            </div>
+            <div class="text-white text-base font-extrabold font-['Rubik'] uppercase leading-6">
+              ${{ formatPrice(item.price) }}
             </div>
           </div>
         </div>
       </div>
-    </DialogPanel>
+    </div>
+
+    <div class="px-3 pb-4 flex items-center gap-2">
+      <button
+        type="button"
+        class="h-10 flex-1 bg-[#FF3435] text-white text-base font-extrabold font-['Rubik'] uppercase"
+        @click="startDoubleDown"
+      >
+        DOUBLE-DOWN
+      </button>
+      <button
+        type="button"
+        class="h-10 px-4 flex items-center justify-center gap-2 bg-[#04AB53] text-white text-base font-extrabold font-['Rubik'] uppercase"
+      >
+        <img src="../../assets/img/loginIcon.png" class="w-6 h-6" />
+        SEND TRADE OFFER
+      </button>
+    </div>
+    <div
+      v-if="showDoubleDownCoins"
+      class="w-full flex flex-col items-center justify-center px-3 pb-6 border-t border-[#530000]/60 pt-4"
+    >
+      <div class="w-full max-w-md mx-auto flex flex-col items-center gap-4">
+        <div
+          class="text-center text-white text-base font-extrabold font-['Rubik'] uppercase leading-6 w-full"
+        >
+          please select a coin
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+          <img
+            class="w-[90px] sm:w-32 h-[90px] sm:h-32 hover:scale-105 transition cursor-pointer rounded-full"
+            :class="coinSelectClass('heaven')"
+            src="../../assets/img/coins/heaven.png"
+            alt="Heaven"
+            @click="selectedDoubleCoin = 'heaven'"
+          />
+          <img
+            class="w-[90px] sm:w-32 h-[90px] sm:h-32 hover:scale-105 transition cursor-pointer rounded-full"
+            :class="coinSelectClass('hell')"
+            src="../../assets/img/coins/hell.png"
+            alt="Hell"
+            @click="selectedDoubleCoin = 'hell'"
+          />
+          <div
+            class="relative hover:scale-105 transition cursor-pointer rounded-full"
+            @click="selectedDoubleCoin = 'random'"
+          >
+            <div
+              class="w-[90px] sm:w-32 h-[90px] sm:h-32 rounded-full relative bg-[rgb(255,52,53,0.2)] flex items-center justify-center overflow-hidden"
+              :class="coinSelectClass('random', true)"
+            >
+              <img src="../../assets/icons/questionMark.png" class="w-12 h-12 object-contain" alt="" />
+              <img
+                src="../../assets/icons/questionMark.png"
+                class="opacity-20 absolute left-1 w-[30px] h-[38px] rotate-[-15deg] bottom-2"
+                alt=""
+              />
+              <img
+                src="../../assets/icons/questionMark.png"
+                class="opacity-20 absolute right-1 w-[30px] h-[38px] rotate-[15deg] top-3"
+                alt=""
+              />
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 w-full justify-center">
+          <button
+            type="button"
+            class="px-6 py-2 bg-[#04AB53] text-white text-base font-extrabold font-['Rubik'] uppercase disabled:opacity-40 disabled:cursor-not-allowed"
+            :disabled="!selectedDoubleCoin"
+            @click="confirmDoubleDown"
+          >
+            CONFIRM
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
+
 <script>
-import { DialogPanel, DialogTitle } from '@headlessui/vue'
 import { XMarkIcon } from '@heroicons/vue/24/solid'
+import { openModalFromModal } from '@/modalStore'
+import { getAuth } from '@/auth/session'
 
 export default {
-  name: 'coinFlip_Battle',
+  name: 'CoinflipWinnerModal',
   props: {
-    winner: Object
+    winner: {
+      type: Object,
+      default: () => ({})
+    },
+    battle: {
+      type: Object,
+      default: () => ({ players: [] })
+    },
+    wonAmount: {
+      type: Number,
+      default: 0
+    }
   },
-  components: {
-    DialogPanel,
-    XMarkIcon,
-    DialogTitle
-  },
+  components: { XMarkIcon },
   data() {
     return {
-      searchQuery: '',
-      items: [
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 900,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 10,
-          _id: 1
-        },
-
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 40,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 30,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 1,
-          _id: 1
-        },
-        {
-          name: 'AK-47s',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 46,
-          _id: 1
-        },
-        {
-          name: 'AK-47t',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 90,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 30,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 130,
-          _id: 1
-        }
-      ],
-      activeModal: null,
-      selectedItems: [],
-      openedDropdown: null,
-      min: 0,
-      max: 0
-      // joinable: false
+      showDoubleDownCoins: false,
+      selectedDoubleCoin: ''
+    }
+  },
+  computed: {
+    winnerAvatar() {
+      return getAuth()?.avatarUrl || this.winner?.avatar || '/img/user/userImage.png'
+    },
+    loserPlayer() {
+      const players = Array.isArray(this.battle?.players) ? this.battle.players : []
+      if (!players.length) return null
+      const w = this.winner
+      const byWin = players.find((p) => p && p.win === false)
+      if (byWin) return byWin
+      if (w && (w._id != null || w.name)) {
+        return players.find((p) => p !== w && (p._id !== w._id || p.name !== w.name)) || null
+      }
+      return players[1] || null
+    },
+    allBattleItems() {
+      const winnerItems = Array.isArray(this.winner?.items) ? this.winner.items : []
+      const loser = this.loserPlayer
+      const loserItems = loser && Array.isArray(loser.items) ? loser.items : []
+      return [...winnerItems, ...loserItems]
+    },
+    formattedWon() {
+      const amount = Number(this.wonAmount || this.battle?.total || 0)
+      return amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     }
   },
   methods: {
-    // join() {
-    //   this.$emit('joinPlayer')
-    // },
-
+    coinSelectClass(coin, isRandomBox) {
+      const selected = this.selectedDoubleCoin === coin
+      if (isRandomBox) {
+        return {
+          'opacity-50': this.selectedDoubleCoin !== '' && !selected,
+          'ring-[5px] ring-[#ff3435] ring-offset-2 ring-offset-[#310000]': selected
+        }
+      }
+      return {
+        'opacity-50': this.selectedDoubleCoin !== '' && !selected,
+        'shadow-[0_0_50px_1px_#95c9fb] rounded-full': coin === 'heaven' && selected,
+        'shadow-[0_0_50px_1px_#db0404] rounded-full': coin === 'hell' && selected
+      }
+    },
+    startDoubleDown() {
+      this.showDoubleDownCoins = true
+      this.selectedDoubleCoin = ''
+    },
+    confirmDoubleDown() {
+      if (!this.selectedDoubleCoin) return
+      const winnerItems = Array.isArray(this.winner?.items) ? [...this.winner.items] : []
+      openModalFromModal('create coinflip', {
+        initialCoin: this.selectedDoubleCoin,
+        initialSelectedItems: winnerItems,
+        doubleDownFromBattle: this.battle
+      })
+    },
     closeModal() {
       this.$emit('close-modal')
+    },
+    formatPrice(price) {
+      return Number(price || 0).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
     }
-  },
-  mounted() {},
-
-  computed: {}
+  }
 }
 </script>
-
-<style scoped>
-::-webkit-scrollbar {
-  display: block;
-  width: 0.3rem !important;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  /* width: 2rem; */
-  background: #d10d0d;
-  border-radius: 4px;
-}
-.tooltip {
-  display: none;
-}
-.info:hover .tooltip {
-  display: flex;
-  position: absolute;
-  z-index: 1;
-  box-shadow: 0px 4px 6px 0px #00000040;
-}
-</style>

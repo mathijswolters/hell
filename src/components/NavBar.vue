@@ -37,6 +37,34 @@
               </defs>
             </svg>
           </button>
+          <div class="w-24 h-16 relative cursor-pointer" @click="openModal('weekly cases')">
+            <div class="left-0 top-[48px] absolute flex items-center gap-1.5 whitespace-nowrap">
+              <div class="relative overflow-hidden w-[10px] h-[10px]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="#FFFFFF" stroke-width="1"/>
+                  <line x1="12" y1="12" x2="12" y2="6" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round"/>
+                  <line x1="12" y1="12" x2="16" y2="12" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="text-white/70 text-xs font-semibold font-['Rubik'] leading-none">6d 18h 52min</div>
+            </div>
+            <div class="w-14 h-14 left-[19px] top-0 absolute">
+              <img class="w-14 h-14 left-0 top-0 absolute" src="../assets/img/weekly-case.png" />
+              <div class="left-[3px] top-[21px] absolute justify-start">
+                <span
+                  class="text-green-600 text-sm font-medium font-['Rubik'] [text-shadow:_4px_4px_12px_rgb(0_0_0_/_1.00)]"
+                  >$</span
+                ><span
+                  class="text-white text-sm font-medium font-['Rubik'] [text-shadow:_4px_4px_12px_rgb(0_0_0_/_1.00)]"
+                  >124.20</span
+                >
+              </div>
+              <div class="w-4 h-4 left-[43px] top-0 absolute bg-red-500 rounded-full"></div>
+              <div class="left-[47px] top-[2px] absolute justify-start text-white text-xs font-normal font-['Rubik_One']">
+                3
+              </div>
+            </div>
+          </div>
           <!-- <router-link to="/" class="text-white font-Rubik_One text-lg ml-[-0.5rem]"
           >CHALLENGES</router-link
         > -->

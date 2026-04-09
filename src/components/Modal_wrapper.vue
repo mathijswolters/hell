@@ -75,6 +75,8 @@ import Redeem_affiliate from './modals/free_coins/Redeem_affiliate.vue'
 import LoginModal from './modals/LoginModal.vue'
 import SteamOfferModal from './modals/SteamOfferModal.vue'
 import JackpotWinnerChoiceModal from './jackpot/JackpotWinnerChoiceModal.vue'
+import Weekly_cases from './modals/free_coins/Weekly_cases.vue'
+import CoinflipWinnerModal from './coinflip/WinnerModal.vue'
 
 export default {
   setup() {
@@ -89,7 +91,14 @@ export default {
         withdraw: { component: Withdraw },
         'coinflip settings': { component: CoinflipSettings, props: { filters: data } },
         'sitewide history': { component: SiteWideHistory },
-        'create coinflip': { component: CreateCoinflip },
+        'create coinflip': {
+          component: CreateCoinflip,
+          props: {
+            initialCoin: data.initialCoin ?? '',
+            initialSelectedItems: Array.isArray(data.initialSelectedItems) ? data.initialSelectedItems : [],
+            doubleDownFromBattle: data.doubleDownFromBattle ?? null
+          }
+        },
         'coinflip confirmation': {
           component: JoinCoinFlipConfirmationModal,
           props: { battle: data.battle, selectedItems: data.selectedItems }
@@ -133,6 +142,7 @@ export default {
         },
         'free mula': { component: Free_mula },
         'level cases': { component: Level_cases },
+        'weekly cases': { component: Weekly_cases },
         'scam prevention': { component: Scam_prevention },
         'security warning': { component: Security_warning, onClose: () => {} },
         KYC: { component: KYC },
@@ -161,7 +171,15 @@ export default {
         freecoins: { component: FreeCoins },
         'hall of fame': { component: HOF },
         login: { component: LoginModal, props: { redirectTo: data.redirectTo ?? '/' } },
-        'steam offer': { component: SteamOfferModal, props: { offerUrl: data.offerUrl ?? '' } }
+        'steam offer': { component: SteamOfferModal, props: { offerUrl: data.offerUrl ?? '' } },
+        'coinflip winner': {
+          component: CoinflipWinnerModal,
+          props: {
+            winner: data.winner ?? {},
+            battle: data.battle ?? {},
+            wonAmount: data.wonAmount ?? 0
+          }
+        }
       }
 
       const config = modals[type] || { component: null }

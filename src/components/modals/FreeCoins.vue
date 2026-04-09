@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative sm:min-w-[480px] py-5 max-w-[480px] flex-col transform transition-all bg-[rgba(74,1,1,1)] backdrop-blur-[200px] border-[#530000] border overflow-hidden rounded-lg"
+    class="relative sm:min-w-[480px] py-5 max-w-[650px] flex-col transform transition-all bg-[rgba(74,1,1,1)] backdrop-blur-[200px] border-[#530000] border overflow-hidden rounded-lg"
   >
     <XMarkIcon
       class="absolute right-2 top-2 w-6 h-6 cursor-pointer hover:scale-110 transition-transform ease-linear duration-150 stroke-[3px] stroke-[rgba(255,52,53,1)]"
@@ -14,17 +14,16 @@
           @click="openModal('redeem affiliate')"
         >
           <span class="font-Rubik text-white font-medium text-xs sm:text-sm">Affiliates</span>
-
-          <UserGroupIcon class="fill-[rgba(255,52,53,1)] w-[43px] h-[33px]" />
-
+          <UserGroupIcon class="fill-[rgba(255,52,53,1)] size-12" />
           <span class="flex opacity-30 font-Rubik text-sm text-white font-medium"
             >+
             <p class="font-Rubik text-sm ml-0.5 text-[rgba(4,171,83)] font-medium">$</p>
             0.50</span
           >
         </div>
+        
         <div
-          class="flex flex-col items-center gap-y-0.5 transition-all duration-100 hover:scale-105 cursor-pointer mb-1 sn:mb-0"
+          class="flex flex-col items-center gap-y-0.5 transition-all duration-100 hover:scale-105 cursor-pointer sn:mb-0"
           @click="openModal('free mula', remainingTime), startTimer"
         >
           <span
@@ -32,13 +31,11 @@
             @click="redeemed = true"
             >30m Free</span
           >
-
           <img
             src="../../assets/icons/coinstack.png"
-            class="transition-all duration-500"
-            :class="{ 'opacity-30 ': remainingTime > 0 }"
+            class="transition-all duration-500 size-12"
+            :class="{ 'opacity-30 ': remainingTime > 0 }"            
           />
-
           <span
             v-if="remainingTime > 0"
             class="flex font-Rubik text-xs sm:text-sm text-white font-medium opacity-30"
@@ -50,30 +47,55 @@
             0.03</span
           >
         </div>
+        
         <div
           @click="openModal('promo code')"
           class="flex flex-col items-center cursor-pointer hover:scale-105 transition-all duration-100"
         >
           <span class="font-Rubik text-white font-medium text-xs sm:text-sm">Promocode</span>
-          <img src="../../assets/icons/promoTicket.png" />
+          <img src="../../assets/icons/promoTicket.png" class="size-16"/>
         </div>
-      </div>
-      <hr class="w-[2px] h-[65px] bg-white border-transparent" />
-      <div
-        class="flex flex-col items-center cursor-pointer hover:scale-105 transition-all duration-100"
-        @click="openModal('level cases')"
-      >
-        <span class="font-Rubik text-white font-medium text-sm">Level Cases</span>
-        <div class="relative">
-          <img src="../../assets/icons/case.png" />
-          <div
-            class="absolute -bottom-2 -right-1 w-[20px] h-[20px] bg-[#2f0101] rounded-full shadow-[0px_2px_2px_0px_rgba(0,0,0,0.50)] border border-[#ff3435] flex items-center justify-center text-white text-xs font-normal font-Rubik"
-          >
-            3
+      
+      
+        <hr class="w-[2px] h-[65px] bg-white border-transparent" />
+
+        <div
+          class="flex flex-col items-center cursor-pointer hover:scale-105 transition-all duration-100"
+          @click="openModal('level cases')"
+        >
+          <span class="font-Rubik text-white font-medium text-sm">Level Cases</span>
+          <div class="relative">
+            <img src="../../assets/icons/case.png" class="size-16"/>
+            <div
+              class="absolute -bottom-2 -right-1 w-[20px] h-[20px] bg-[#2f0101] rounded-full shadow-[0px_2px_2px_0px_rgba(0,0,0,0.50)] border border-[#ff3435] flex items-center justify-center text-white text-xs font-normal font-Rubik"
+            >
+              3
+            </div>
+          </div>
+        </div>
+      
+        <div
+          class="flex flex-col items-center cursor-pointer hover:scale-105 transition-all duration-100"
+          @click="openModal('weekly cases')"
+        >
+          <span class="font-Rubik text-white font-medium text-sm">Weekly Case</span>
+          <div class="relative">
+            <img src="../../assets/img/weekly-case.png" class="size-16"/>
+            <div
+              class="absolute inset-0 flex items-center justify-center text-white text-sm font-medium font-Rubik pointer-events-none"
+            >
+              <span class="text-green-600 text-sm font-medium font-Rubik">$</span>120.20
+            </div>
+            <div
+              class="absolute -bottom-2 -right-1 w-[20px] h-[20px] bg-[#2f0101] rounded-full shadow-[0px_2px_2px_0px_rgba(0,0,0,0.50)] border border-[#ff3435] flex items-center justify-center text-white text-xs font-normal font-Rubik"
+            >
+              2
+            </div>
           </div>
         </div>
       </div>
     </div>
+   
     <div class="flex items-center justify-center mt-2 flex-col gap-y-2" v-if="gift">
       <div class="relative">
         <img src="../../assets/img/giftImage.svg" />

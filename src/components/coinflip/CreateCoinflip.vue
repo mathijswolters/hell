@@ -281,6 +281,20 @@
 <script>
 import { XMarkIcon, MagnifyingGlassIcon, ChevronDownIcon } from '@heroicons/vue/24/solid'
 export default {
+  props: {
+    initialCoin: {
+      type: String,
+      default: ''
+    },
+    initialSelectedItems: {
+      type: Array,
+      default: () => []
+    },
+    doubleDownFromBattle: {
+      type: Object,
+      default: null
+    }
+  },
   data() {
     return {
       inventory: [
@@ -397,6 +411,24 @@ export default {
     closeModal() {
       this.$emit('close-modal')
     },
+    applyInitialDoubleDown() {
+      const valid = ['heaven', 'hell', 'random']
+      if (this.initialCoin && valid.includes(this.initialCoin)) {
+        this.selectedCoin = this.initialCoin
+      }
+      if (!Array.isArray(this.initialSelectedItems) || !this.initialSelectedItems.length) return
+      const picked = []
+      for (const battleItem of this.initialSelectedItems) {
+        const inv = this.inventory.find(
+          (i) =>
+            (battleItem._id != null && i._id === battleItem._id) ||
+            (battleItem.image && i.image === battleItem.image) ||
+            (i.name === battleItem.name && Number(i.price) === Number(battleItem.price))
+        )
+        if (inv && !picked.includes(inv)) picked.push(inv)
+      }
+      if (picked.length) this.selectedItems = picked
+    },
     toggleDropdown(dropdown) {
       if (this.openedDropdown == dropdown) {
         this.openedDropdown = null
@@ -415,7 +447,9 @@ export default {
       return this.selectedItems.includes(item)
     }
   },
-  mounted() {},
+  mounted() {
+    this.applyInitialDoubleDown()
+  },
   components: {
     XMarkIcon,
     MagnifyingGlassIcon,
