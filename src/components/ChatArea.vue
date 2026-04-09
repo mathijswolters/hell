@@ -374,7 +374,13 @@
           <div class="mb-4 flex items-center justify-between">
             <h4 class="text-[#d7b7b7] text-lg font-semibold font-['Rubik']">Chats</h4>
             <div class="flex items-center gap-2">
-              <button class="bg-[#04ab53] text-white px-3 py-2 rounded text-xs font-extrabold hover:opacity-90 transition">CREATE NEW</button>
+              <button
+                type="button"
+                class="bg-[#04ab53] text-white px-3 py-2 rounded text-xs font-extrabold hover:opacity-90 transition"
+                @click="createNewChatRoom"
+              >
+                CREATE NEW
+              </button>
               <button
                 class="text-[#d7b7b7] text-xl leading-none hover:text-white transition"
                 @click="closeChatRoomsPopup"
@@ -973,6 +979,21 @@ export default {
     openChatRoomDetails(room) {
       this.selectedChatRoom = room
       this.supportDetailMessage = ''
+    },
+    createNewChatRoom() {
+      const newRoom = {
+        id: Date.now(),
+        name: 'John',
+        time: 'now',
+        preview: 'New chat room',
+        avatar: 'https://imgcdn.stablediffusionweb.com/2024/9/15/5e3461df-7a8d-45dd-8ca7-73223594993f.jpg',
+        supportTyping: false,
+        completed: false,
+        detailMessages: []
+      }
+
+      this.chatRooms.unshift(newRoom)
+      this.openChatRoomDetails(newRoom)
     },
     backToChatRooms() {
       this.selectedChatRoom = null
