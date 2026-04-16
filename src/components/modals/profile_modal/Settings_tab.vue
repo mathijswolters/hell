@@ -302,20 +302,26 @@
             <a
               href="https://steamcommunity.com/id/me/tradeoffers/privacy#trade_offer_access_url"
               class="text-[rgba(255,52,53,1)] font-medium font-Rubik text-sm underline"
-              target="blank"
+              target="_blank"
+              rel="noopener noreferrer"
               >here.</a
             ></span
           >
           <div class="flex items-center gap-x-2 w-full mt-1">
             <input
               type="text"
+              v-model="tradeUrlInput"
               placeholder="https://steamcommunity.com/..."
+              autocomplete="off"
               class="w-full h-9 rounded-sm bg-[rgba(255,52,53,0.35)] outline-none px-2 font-Rubik font-medium text-sm text-white placeholder:text-white placeholder:opacity-50"
             />
             <button
-              class="bg-[rgba(4,171,83,1)] h-full text-white w-[105px] rounded-sm font-Rubik font-bold text-base"
+              type="button"
+              :disabled="savingTradeUrl"
+              class="bg-[rgba(4,171,83,1)] h-9 min-h-[2.25rem] text-white w-[105px] rounded-sm font-Rubik font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="saveTradeUrl"
             >
-              Save
+              {{ savingTradeUrl ? '…' : 'Save' }}
             </button>
           </div>
           <span class="text-[rgba(255,52,53,1)] font-Rubik font-medium text-xs">Required</span>
@@ -894,6 +900,8 @@ import {
 import { chatPosition, chat_position } from '@/chatStore'
 import { countryCodes } from '@/assets/countryCodes'
 import { openModalFromModal } from '@/modalStore'
+import { getAuth, getSteamId, mergeAuth } from '@/auth/session'
+import { updateTradeURL } from '@/services/jackpotClient'
 import DiscordIcon from '../../icons/Discord.vue'
 import PhoneIcon from '../../icons/Phone.vue'
 import EnvelopeDynamiceIcon from '../../icons/Envelope.vue'
@@ -1067,10 +1075,35 @@ export default {
       usersQuery: '',
       mutedUsers: [],
       highlightedIndex: -1,
-      countryCode_search: ''
+      countryCode_search: '',
+      tradeUrlInput: '',
+      savingTradeUrl: false
     }
   },
   methods: {
+    async saveTradeUrl() {
+      const steamid = getSteamId()
+      if (!steamid) {
+        this.$toaster.error('You must be logged in with Steam.')
+        return
+      }
+      const trade_url = String(this.tradeUrlInput ?? '').trim()
+      if (!trade_url) {
+        this.$toaster.error('Enter your Steam trade URL.')
+        return
+      }
+      this.savingTradeUrl = true
+      try {
+        await updateTradeURL({ steamid, trade_url })
+        mergeAuth({ trade_url })
+        this.$toaster.success('Trade URL saved.')
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Could not save trade URL.'
+        this.$toaster.error(msg)
+      } finally {
+        this.savingTradeUrl = false
+      }
+    },
     filterNumbers(event) {
       this.phoneNumber = event.target.value.replace(/\D/g, '').slice(0, 10)
     },
@@ -1204,6 +1237,8 @@ export default {
   },
   mounted() {
     this.chat = chat_position.position
+    const auth = getAuth()
+    if (auth?.trade_url) this.tradeUrlInput = String(auth.trade_url)
     if (this.initialTab != '') {
       this.selectedTab = this.initialTab
     }

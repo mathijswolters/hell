@@ -303,6 +303,30 @@ async function request(path, options = {}) {
   return parseJsonBody(res)
 }
 
+/**
+ * @param {{ steamid: string, trade_url: string }} params
+ * @returns {Promise<Record<string, unknown>>}
+ */
+export async function updateTradeURL({ steamid, trade_url }) {
+  const res = await fetch(`${API_BASE_URL}/user/updateTradeURL`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders()
+    },
+    body: JSON.stringify({ steamid, trade_url })
+  })
+  const data = await parseJsonBody(res)
+  if (data?.error === true) {
+    throw new Error(data?.error_message || 'Request failed')
+  }
+  if (!res.ok) {
+    throw new Error(data?.error_message || `HTTP ${res.status}`)
+  }
+  return data
+}
+
 /** Single shared Socket.IO manager for the SPA (nav + jackpot views). */
 let sharedJackpotSocket = null
 
