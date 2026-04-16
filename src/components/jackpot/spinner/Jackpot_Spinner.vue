@@ -335,6 +335,24 @@ export default {
       }
     },
 
+    /**
+     * Backend already sends the winner; merge them into the reel index under the marker so the
+     * strip matches the final avatar (geometry alone can point at the wrong cell).
+     */
+    applySpinWinnerAtReelIndex(reelIdx, index) {
+      const resolved = this.spinWinner;
+      const row = this.unboxReels[reelIdx];
+      if (!resolved || !Array.isArray(row) || !row.length) return;
+      const n = row.length;
+      const i = ((index % n) + n) % n;
+      const prev = row[i] || {};
+      row.splice(i, 1, { ...prev, ...resolved });
+    },
+    /** Final winner row: always prefer backend `spinWinner` when present. */
+    finalizeSpinWinnerDisplay(fallbackPlayer) {
+      this.winner = this.spinWinner || fallbackPlayer || null;
+    },
+
     /** Hell GG Version-1 (`Hell GG/Version-1/.../Jackpot_Spinner.vue`). */
     _runSpinHellV1(index, game) {
       const reelIdx = index + 1;
@@ -439,7 +457,8 @@ export default {
 
             this.unboxReelsSpinTimeout = setTimeout(() => {
               this.unboxReelsPos = centeredIndex;
-              this.winner = this.unboxReels[reelIdx][centeredIndex];
+              this.applySpinWinnerAtReelIndex(reelIdx, centeredIndex);
+              this.finalizeSpinWinnerDisplay(this.unboxReels[reelIdx][centeredIndex]);
               this.spinPhase = "finished";
               this.unboxRunning = false;
               this.scheduleEmitCompleteAfterWinnerHold(game.demo);
@@ -449,6 +468,8 @@ export default {
             this.unboxReelsPos = centeredIndex;
 
             this.unboxReelsSpinTimeout = setTimeout(() => {
+              this.applySpinWinnerAtReelIndex(reelIdx, centeredIndex);
+              this.finalizeSpinWinnerDisplay(this.unboxReels[reelIdx][centeredIndex]);
               this.spinPhase = "finished";
               this.unboxRunning = false;
               this.scheduleEmitCompleteAfterWinnerHold(game.demo);
@@ -564,7 +585,8 @@ export default {
 
             this.unboxReelsSpinTimeout = setTimeout(() => {
               this.unboxReelsPos = centeredIndex;
-              this.winner = this.unboxReels[reelIdx][centeredIndex];
+              this.applySpinWinnerAtReelIndex(reelIdx, centeredIndex);
+              this.finalizeSpinWinnerDisplay(this.unboxReels[reelIdx][centeredIndex]);
               this.spinPhase = "finished";
 
               this.unboxReelsSpinTimeout = setTimeout(() => {
@@ -577,6 +599,8 @@ export default {
             this.unboxReelsPos = centeredIndex;
 
             this.unboxReelsSpinTimeout = setTimeout(() => {
+              this.applySpinWinnerAtReelIndex(reelIdx, centeredIndex);
+              this.finalizeSpinWinnerDisplay(this.unboxReels[reelIdx][centeredIndex]);
               this.spinPhase = "finished";
               this.unboxReelsSpinTimeout = setTimeout(() => {
                 this.unboxRunning = false;
@@ -645,7 +669,7 @@ export default {
         const centerIndex =
           (currentCenterIndex + steps) % this.unboxReels[reelIdx].length;
         this.unboxReelsPos = centerIndex;
-        this.winner = this.unboxReels[reelIdx][centerIndex];
+        this.finalizeSpinWinnerDisplay(this.unboxReels[reelIdx][centerIndex]);
 
         if (progress >= 1) {
           finalX = finalX - 30;
@@ -656,7 +680,9 @@ export default {
 
           this.unboxReelsSpinTimeout = setTimeout(() => {
             cancelAnimationFrame(this.unboxReelsPosRepeater);
-            this.winner = this.unboxReels[reelIdx][winnerIndex];
+            const stopIdx = this.unboxReelsPos;
+            this.applySpinWinnerAtReelIndex(reelIdx, stopIdx);
+            this.finalizeSpinWinnerDisplay(this.unboxReels[reelIdx][stopIdx]);
             this.spinPhase = "finished";
             this.unboxRunning = false;
             this.scheduleEmitCompleteAfterWinnerHold(game.demo);
@@ -734,7 +760,7 @@ export default {
         this.displayCenterIndex +=
           (centerIndex - this.displayCenterIndex) * smoothing;
         const displayIdx = Math.round(this.displayCenterIndex);
-        this.winner = this.unboxReels[reelIdx][displayIdx];
+        this.finalizeSpinWinnerDisplay(this.unboxReels[reelIdx][displayIdx]);
 
         if (progress >= 1) {
           finalX = finalX - 40;
@@ -745,7 +771,9 @@ export default {
 
           this.unboxReelsSpinTimeout = setTimeout(() => {
             cancelAnimationFrame(this.unboxReelsPosRepeater);
-            this.winner = this.unboxReels[reelIdx][winnerIndex];
+            const stopIdx = this.unboxReelsPos;
+            this.applySpinWinnerAtReelIndex(reelIdx, stopIdx);
+            this.finalizeSpinWinnerDisplay(this.unboxReels[reelIdx][stopIdx]);
             this.spinPhase = "finished";
             this.unboxRunning = false;
             this.scheduleEmitCompleteAfterWinnerHold(game.demo);

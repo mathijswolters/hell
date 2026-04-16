@@ -46,14 +46,13 @@ export function useJackpotSocket({
       connect: () => {
         runLobbySubscribe()
       },
-      jackpotSubscribe: (response) => {
-        onSubscribe?.(response)
-      },
+      // jackpotSubscribe: (response) => {
+      //   onSubscribe?.(response)
+      // },
       connectError: (error) => {
         onConnectError?.(error, debug)
       },
       newDeposit: (payload) => {
-        console.log('payload', payload)
         onNewDeposit?.(payload)
       },
       valueUpdate: ({ total_value }) => {
@@ -63,11 +62,10 @@ export function useJackpotSocket({
         onStartTimer?.({ start, end, send })
       },
       eosBlock: ({ block }) => {
-        console.log('===============', block)
         onEOSBlock?.(block)
       },
       roll: (payload) => {
-        console.log('=============roll=============', payload)
+        console.log('=====roll=====>', payload)
         onRoll?.(payload)
       },
       lastHistory: (payload) => {
@@ -80,6 +78,7 @@ export function useJackpotSocket({
 
     socket.on('connect', lobbyHandlers.connect)
     socket.on('jackpot:subscribe', lobbyHandlers.jackpotSubscribe)
+    socket.on('jackpot', lobbyHandlers.fff)
     socket.on('connect_error', lobbyHandlers.connectError)
     socket.on('jackpot:newDeposit', lobbyHandlers.newDeposit)
     socket.on(`jackpot:${potId}:valueUpdate`, lobbyHandlers.valueUpdate)

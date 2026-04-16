@@ -683,17 +683,6 @@ export default {
       if (!sid || !winner?.steamid) return false
       return String(winner.steamid) === String(sid)
     },
-    findWinnerByTicket(ticketRaw) {
-      const t = toNumber(String(ticketRaw ?? '').replace(/[^\d.-]/g, ''), NaN)
-      if (!Number.isFinite(t)) return null
-      const players = Array.isArray(this.game.players) ? this.game.players : []
-      for (const p of players) {
-        const min = toNumber(p.ticketRange?.min, 0)
-        const max = toNumber(p.ticketRange?.max, 0)
-        if (max >= min && t >= min && t <= max) return p
-      }
-      return null
-    },
     /**
      * Round ends after ~30s; backend sends `jackpot:roll` with winner, ticket, avatars.
      * Spin + winner UI are driven only by that event (not by the local timer hitting 0).
@@ -702,8 +691,7 @@ export default {
       if (!this.hasAtLeastTwoDistinctSteamPlayers) return
       if (this.jackpotSpinDone) return
 
-      const target =
-        this.pendingSpinWinner || this.findWinnerByTicket(this.fairness.ticket)
+      const target = this.pendingSpinWinner
       if (!target) return
 
       this.suppressJackpotSpinnerRailAfterReveal = false
@@ -735,8 +723,7 @@ export default {
         this.jackpotFairnessShownAfterSpin = true
       }
 
-      const winnerForResults =
-        this.pendingSpinWinner || this.findWinnerByTicket(this.fairness.ticket)
+      const winnerForResults = this.pendingSpinWinner
       this.pendingSpinWinner = null
 
       const rollSig = `${String(this.game?._id ?? '')}|${String(this.fairness.ticket ?? '')}|${String(this.fairness.hash ?? '')}`
@@ -1096,9 +1083,6 @@ export default {
               )
               if (matched) spinTarget = { ...matched, ...spinTarget }
             }
-          }
-          if (!spinTarget && this.fairness.ticket) {
-            spinTarget = this.findWinnerByTicket(this.fairness.ticket)
           }
           if (!spinTarget && this.game.players?.length) {
             spinTarget = this.game.players[0]
