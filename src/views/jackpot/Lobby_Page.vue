@@ -266,7 +266,7 @@
         <div
           class="min-h-[59px] flex w-full items-center justify-center sm:justify-between gap-2 px-4 py-3 sm:py-0 bg-[rgba(98,1,1,1)] flex-wrap rounded-t-sm"
         >
-          <!-- Left Start — row count matches list below (deposit lines, not always same as player count) -->
+          <!-- Left Start — one card per player (all skins grouped like history modal) -->
           <div class="font-Rubik font-bold text-base text-white whitespace-nowrap">
             CURRENT ENTRIES {{ jackpotDepositRowCount }}
           </div>
@@ -307,7 +307,6 @@
               v-for="dep in jackpotDepositRowsDisplay"
               :key="dep.key"
               :user="dep.player"
-              :deposit-item="dep.item"
               :range-low="dep.rangeLow"
               :range-high="dep.rangeHigh"
               :chance-pct="dep.chancePct"
@@ -539,8 +538,8 @@ export default {
       return num
     },
     /**
-     * One row per deposit (offer/item): cumulative 0–100% wheel segments like history,
-     * in API player order, then item order within each player.
+     * One row per player: all skins shown in a grid (like history modal). Wheel segments are
+     * the sum of per-item chances for that player; cumulative 0–100% in API player order.
      */
     jackpotDepositRows() {
       const players = Array.isArray(this.game?.players) ? this.game.players : []
@@ -560,27 +559,26 @@ export default {
           rows.push({
             key: `p-${p._id ?? p.steamid}-solo`,
             player: p,
-            item: null,
             rangeLow,
             rangeHigh,
             chancePct: c
           })
           continue
         }
-        items.forEach((it, idx) => {
-          const c = this.depositChanceForItem(it, p, pot)
-          const rangeLow = acc
-          const rangeHigh = Math.min(100, acc + c)
-          acc = rangeHigh
-          const oid = it.offerid ?? it.id ?? idx
-          rows.push({
-            key: `d-${p._id ?? p.steamid}-${oid}-${idx}`,
-            player: p,
-            item: it,
-            rangeLow,
-            rangeHigh,
-            chancePct: c
-          })
+        let totalC = 0
+        for (const it of items) {
+          totalC += this.depositChanceForItem(it, p, pot)
+        }
+        totalC = Math.min(100, Math.max(0, totalC))
+        const rangeLow = acc
+        const rangeHigh = Math.min(100, acc + totalC)
+        acc = rangeHigh
+        rows.push({
+          key: `p-${p._id ?? p.steamid}-all`,
+          player: p,
+          rangeLow,
+          rangeHigh,
+          chancePct: totalC
         })
       }
       return rows
@@ -589,7 +587,7 @@ export default {
     jackpotDepositRowsDisplay() {
       return [...this.jackpotDepositRows].reverse()
     },
-    /** Matches the number of `Row` lines below (deposit segments), not always `game.players.length`. */
+    /** One per player with a deposit (same as `Row` cards below). */
     jackpotDepositRowCount() {
       return this.jackpotDepositRows.length
     }
