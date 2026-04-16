@@ -483,8 +483,9 @@ export default {
     },
     /** Must match the round window length used by `secondsLeft` / `displayTimerValue`. */
     jackpotTimerRingMax() {
-      const m = Math.max(1, Math.floor(toNumber(this.timerTotalSeconds, 120)))
-      return m
+      // const m = Math.max(1, Math.floor(toNumber(this.timerTotalSeconds, 120)))
+      // return m
+      return 120
     },
     /**
      * Progress ring value tracks the same number shown in the center (unlike older attempts that

@@ -76,12 +76,14 @@
         </div>
       </div>
     </div>
+    <SupportChatCta />
   </div>
 </template>
 <script>
 import { XMarkIcon, ChatBubbleBottomCenterTextIcon } from '@heroicons/vue/24/outline'
 import Navigation from './components/NavBar.vue'
 import Chat from './components/ChatArea.vue'
+import SupportChatCta from '@/components/jackpot/SupportChatCta.vue'
 import Modal_wrapper from './components/Modal_wrapper.vue'
 import { chat_position, chat_opened, open_chat, chat_toggle } from '@/chatStore'
 import Footer_component from './components/Footer.vue'
@@ -98,6 +100,7 @@ export default {
   components: {
     Navigation,
     Chat,
+    SupportChatCta,
     Modal_wrapper,
     // ChevronRightIcon,
     XMarkIcon,
