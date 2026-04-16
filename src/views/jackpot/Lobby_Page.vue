@@ -193,11 +193,12 @@
           class="absolute p-0 bg-[rgba(66,1,1,1)] w-[114.5px] h-[114.5px] lg:h-[242.5px] lg:w-[242.5px] rounded-full flex items-center justify-center"
         >
           <CircleProgressBar
-            :value="displayTimerValue"
-            :max="displayTimerMax"
+            :value="jackpotTimerRingValue"
+            :max="jackpotTimerRingMax"
             :size="screenWidth > 1024 ? 254.5 : 120"
-            :colorUnfilled="'rgba(4,171,83,1)'"
-            :colorBack="'rgba(4,171,83,0.2)'"
+            :colorFilled="jackpotTimerRingColorFilled"
+            :colorUnfilled="jackpotTimerRingColorUnfilled"
+            :colorBack="jackpotTimerRingColorBack"
             :startAngle="0"
             strokeWidth="15"
             class="-ml-0.5 lg:-ml-[4.8545px] mt-[-1.04px] lg:-mt-[0.32rem]"
@@ -452,7 +453,12 @@ export default {
       void this.secondsLeft
       return this.nowMs() >= this.serverRoundEndMs
     },
-    /** Provably-fair line (ticket / hash / EOS) only after `jackpot:roll` sends real values. */
+    isWaitingStatus() {
+      const s = this.game?.status ?? this.game?.state ?? null
+      if (s == null) return false
+      const v = String(s).toLowerCase()
+      return v === 'waiting'
+    },
     hasJackpotFairnessFromRoll() {
       const t = this.fairness?.ticket
       const h = this.fairness?.hash
@@ -460,16 +466,41 @@ export default {
       const hashOk = h != null && String(h).trim() !== ''
       return ticketOk && hashOk
     },
-    /** Same data as `hasJackpotFairnessFromRoll`, but shown only after the reel animation finishes. */
     showJackpotProvablyFairLine() {
-      return this.hasJackpotFairnessFromRoll && this.jackpotFairnessShownAfterSpin
+      return (
+        this.hasJackpotFairnessFromRoll &&
+        this.jackpotFairnessShownAfterSpin &&
+        this.showJackpotSpinnerRail
+      )
     },
     /** Ring + label: no backend end time yet → empty ring. */
     displayTimerValue() {
+      if (this.isWaitingStatus) return this.timerTotalSeconds
       if (this.serverRoundEndMs == null) return 0
       if (this.isRoundEndingPhase) return this.secondsLeft
       if (!this.hasAtLeastTwoDistinctSteamPlayers) return this.displayTimerMax
       return this.secondsLeft
+    },
+    /** Must match the round window length used by `secondsLeft` / `displayTimerValue`. */
+    jackpotTimerRingMax() {
+      const m = Math.max(1, Math.floor(toNumber(this.timerTotalSeconds, 120)))
+      return m
+    },
+    /**
+     * Progress ring value tracks the same number shown in the center (unlike older attempts that
+     * forced `max` while the label still showed `secondsLeft`).
+     */
+    jackpotTimerRingValue() {
+      return Math.max(0, Math.min(this.jackpotTimerRingMax, Math.floor(toNumber(this.displayTimerValue, 0))))
+    },
+    jackpotTimerRingColorFilled() {
+      return '#04AB53'
+    },
+    jackpotTimerRingColorUnfilled() {
+      return '#04AB53'
+    },
+    jackpotTimerRingColorBack() {
+      return 'rgba(4, 171, 83, 0.2)'
     },
     displayTimerMax() {
       return 120
@@ -816,6 +847,11 @@ export default {
         this.secondsLeft = Math.max(0, Math.ceil((endMs - this.nowMs()) / 1000))
         return
       }
+      if (this.isWaitingStatus) {
+        this.stopTimerTick()
+        this.secondsLeft = this.timerTotalSeconds
+        return
+      }
       // If the pot doesn't have 2+ distinct steam IDs, do not run the timer/spin.
       if (!this.hasAtLeastTwoDistinctSteamPlayers) {
         this.stopTimerTick()
@@ -838,6 +874,11 @@ export default {
       if (this.isRoundEndingPhase) {
         this.stopTimerTick()
         this.secondsLeft = Math.max(0, Math.ceil((this.serverRoundEndMs - this.nowMs()) / 1000))
+        return
+      }
+      if (this.isWaitingStatus) {
+        this.stopTimerTick()
+        this.secondsLeft = this.timerTotalSeconds
         return
       }
       if (!this.hasAtLeastTwoDistinctSteamPlayers) {
@@ -867,10 +908,26 @@ export default {
         this.intervalId = null
       }
     },
+    sortJackpotHistoryByGameIdDesc(entries) {
+      const list = Array.isArray(entries) ? entries.slice() : []
+      list.sort((a, b) => {
+        const ga = toNumber(a?.gameid ?? a?._id, NaN)
+        const gb = toNumber(b?.gameid ?? b?._id, NaN)
+        const aNum = Number.isFinite(ga)
+        const bNum = Number.isFinite(gb)
+        if (aNum && bNum && ga !== gb) return gb - ga
+        if (aNum && !bNum) return -1
+        if (!aNum && bNum) return 1
+        const sa = String(a?.gameid ?? a?._id ?? '')
+        const sb = String(b?.gameid ?? b?._id ?? '')
+        return sb.localeCompare(sa, undefined, { numeric: true })
+      })
+      return list
+    },
     async refreshHistory() {
       try {
         const list = await getHistory()
-        if (list.length) this.history = list
+        if (list.length) this.history = this.sortJackpotHistoryByGameIdDesc(list)
       } catch (error) {
         console.error('Failed to fetch jackpot history:', error)
       }
@@ -964,7 +1021,8 @@ export default {
             this.applyRoundTiming()
           }
           if (Array.isArray(payload.history)) {
-            this.history = payload.history.map((entry) => normalizeHistoryEntry(entry))
+            const mapped = payload.history.map((entry) => normalizeHistoryEntry(entry))
+            this.history = this.sortJackpotHistoryByGameIdDesc(mapped)
           }
           if (payload.luckiest) {
             this.biggest_win = normalizeHistoryEntry(payload.luckiest)
@@ -1058,7 +1116,8 @@ export default {
         onLastHistory: async (payload) => {
           const historyEntry = payload?.history ?? payload
           if (historyEntry) {
-            this.history = [normalizeHistoryEntry(historyEntry), ...this.history].slice(0, 20)
+            const merged = [normalizeHistoryEntry(historyEntry), ...this.history].slice(0, 20)
+            this.history = this.sortJackpotHistoryByGameIdDesc(merged)
           }
           await this.refreshRound()
         },
@@ -1131,6 +1190,11 @@ export default {
         // keep the UI/timer paused until the pot grows.
         if (this.serverRoundEndMs == null) return
         if (this.isRoundEndingPhase) return
+        if (this.isWaitingStatus) {
+          this.stopTimerTick()
+          this.secondsLeft = this.timerTotalSeconds
+          return
+        }
         if (!this.hasAtLeastTwoDistinctSteamPlayers) {
           this.stopTimerTick()
           this.secondsLeft = this.timerTotalSeconds

@@ -1,8 +1,8 @@
-import { createJackpotSocket, getSocketDebugInfo, isSocketEnabled } from '@/services/jackpotClient'
+import { getSharedJackpotSocket, getSocketDebugInfo, isSocketEnabled } from '@/services/jackpotClient'
 
 /**
  * Centralized Jackpot socket wiring.
- * Keeps event subscriptions in one place and lets the page pass callbacks.
+ * Uses the shared Socket.IO client (one connection per page load); only registers listeners here.
  */
 export function useJackpotSocket({
   potId = 1,
@@ -18,75 +18,100 @@ export function useJackpotSocket({
   onConnectError
 } = {}) {
   let socket = null
+  let lobbyHandlers = null
 
   const connect = () => {
     if (socket || !isSocketEnabled()) return socket
-    socket = createJackpotSocket()
+    socket = getSharedJackpotSocket()
     if (!socket) return null
 
     const debug = getSocketDebugInfo()
 
-    socket.on('connect', () => {
+    const runLobbySubscribe = () => {
       const payload = {
         potid: potId,
         history: true,
         luckiest: true
       }
       const sid = getSteamId?.()
-      console.log('socket is connected');
+      if (sid) payload.steamid = sid
+      console.log('socket is connected')
 
       socket.emit('jackpot:subscribe', payload, (response) => {
         onSubscribe?.(response)
       })
-    })
+    }
 
-    socket.on('jackpot:subscribe', (response) => {
-      onSubscribe?.(response)
-    })
+    lobbyHandlers = {
+      connect: () => {
+        runLobbySubscribe()
+      },
+      jackpotSubscribe: (response) => {
+        onSubscribe?.(response)
+      },
+      connectError: (error) => {
+        onConnectError?.(error, debug)
+      },
+      newDeposit: (payload) => {
+        console.log('payload', payload)
+        onNewDeposit?.(payload)
+      },
+      valueUpdate: ({ total_value }) => {
+        onValueUpdate?.(total_value)
+      },
+      startTimer: ({ start, end, send }) => {
+        onStartTimer?.({ start, end, send })
+      },
+      eosBlock: ({ block }) => {
+        console.log('===============', block)
+        onEOSBlock?.(block)
+      },
+      roll: (payload) => {
+        console.log('=============roll=============', payload)
+        onRoll?.(payload)
+      },
+      lastHistory: (payload) => {
+        onLastHistory?.(payload)
+      },
+      luckiest: (payload) => {
+        onLuckiest?.(payload)
+      }
+    }
 
-    socket.on('connect_error', (error) => {
-      onConnectError?.(error, debug)
-    })
+    socket.on('connect', lobbyHandlers.connect)
+    socket.on('jackpot:subscribe', lobbyHandlers.jackpotSubscribe)
+    socket.on('connect_error', lobbyHandlers.connectError)
+    socket.on('jackpot:newDeposit', lobbyHandlers.newDeposit)
+    socket.on(`jackpot:${potId}:valueUpdate`, lobbyHandlers.valueUpdate)
+    socket.on('jackpot:startTimer', lobbyHandlers.startTimer)
+    socket.on('fairness:EOSBlock', lobbyHandlers.eosBlock)
+    socket.on('jackpot:roll', lobbyHandlers.roll)
+    socket.on('jackpot:lastHistory', lobbyHandlers.lastHistory)
+    socket.on('jackpot:luckiest', lobbyHandlers.luckiest)
 
-    socket.on('jackpot:newDeposit', (payload) => {
-      console.log('payload', payload)
-      onNewDeposit?.(payload)
-    })
-
-    socket.on(`jackpot:${potId}:valueUpdate`, ({ total_value }) => {
-      onValueUpdate?.(total_value)
-    })
-
-    socket.on('jackpot:startTimer', ({ start, end, send }) => {
-      onStartTimer?.({ start, end, send })
-    })
-
-    socket.on('fairness:EOSBlock', ({ blockid }) => {
-      console.log('===============', blockid)
-      onEOSBlock?.(blockid)
-    })
-
-    socket.on('jackpot:roll', (payload) => {
-      console.log('=============roll=============', payload);
-      onRoll?.(payload)
-    })
-
-    socket.on('jackpot:lastHistory', (payload) => {
-      onLastHistory?.(payload)
-    })
-
-    socket.on('jackpot:luckiest', (payload) => {
-      onLuckiest?.(payload)
-    })
+    if (socket.connected) {
+      runLobbySubscribe()
+    }
 
     return socket
   }
 
   const disconnect = () => {
-    if (!socket) return
-    socket.removeAllListeners()
-    socket.disconnect()
+    if (!socket || !lobbyHandlers) return
+    const s = socket
+    const h = lobbyHandlers
+    s.off('connect', h.connect)
+    s.off('jackpot:subscribe', h.jackpotSubscribe)
+    s.off('connect_error', h.connectError)
+    s.off('jackpot:newDeposit', h.newDeposit)
+    s.off(`jackpot:${potId}:valueUpdate`, h.valueUpdate)
+    s.off('jackpot:startTimer', h.startTimer)
+    s.off('fairness:EOSBlock', h.eosBlock)
+    s.off('jackpot:roll', h.roll)
+    s.off('jackpot:lastHistory', h.lastHistory)
+    s.off('jackpot:luckiest', h.luckiest)
     socket = null
+    lobbyHandlers = null
   }
 
   const getSocket = () => socket

@@ -7,7 +7,7 @@
         class="relative flex justify-start items-center px-4 py-3 shrink-0 border-b border-[#6a1715] bg-[#4c0703]"
     >
       <span class="font-Rubik font-extrabold text-white text-base uppercase tracking-wide text-center">
-        JACKPOT #{{ displayPotId }}
+        JACKPOT #{{ gameid }}
       </span>
       <XMarkIcon
         class="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 cursor-pointer hover:opacity-90 transition-opacity text-white"

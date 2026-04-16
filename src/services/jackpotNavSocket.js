@@ -4,7 +4,7 @@
  * - Initial value: `emit('jackpot:getValue', { potid }, ack)` — server returns current total in the callback.
  * - Live updates: `jackpot:<potid>:valueUpdate` with `{ total_value }` (or numeric).
  */
-import { createJackpotSocket, isSocketEnabled } from './jackpotClient'
+import { destroySharedJackpotSocket, getSharedJackpotSocket, isSocketEnabled } from './jackpotClient'
 import { getSteamId } from '@/auth/session'
 import { store } from '@/store'
 
@@ -29,15 +29,21 @@ function applyNavTotal(raw) {
   store.commit('setJackpotNavTotal', v)
 }
 
-export function teardownJackpotNavSocket() {
+/**
+ * @param {boolean} [disconnectShared] — pass `true` on full app unload to tear down the shared Socket.IO client.
+ */
+export function teardownJackpotNavSocket(disconnectShared = false) {
   activeTeardown?.()
   activeTeardown = null
+  if (disconnectShared) {
+    destroySharedJackpotSocket()
+  }
 }
 
 export function initJackpotNavSocket() {
   if (!isSocketEnabled()) return () => {}
   teardownJackpotNavSocket()
-  navSocket = createJackpotSocket()
+  navSocket = getSharedJackpotSocket()
   if (!navSocket) return () => {}
 
   const requestNavValue = () => {
@@ -76,7 +82,6 @@ export function initJackpotNavSocket() {
     if (!navSocket) return
     navSocket.off('connect', onConnect)
     navSocket.offAny(onAnyValueUpdate)
-    navSocket.disconnect()
     navSocket = null
   }
   return activeTeardown

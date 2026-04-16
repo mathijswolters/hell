@@ -303,15 +303,20 @@ async function request(path, options = {}) {
   return parseJsonBody(res)
 }
 
+/** Single shared Socket.IO manager for the SPA (nav + jackpot views). */
+let sharedJackpotSocket = null
+
 /**
- * Connects to Engine.IO (see `getSocketUrl()`). Same-origin + proxy: no CORS from the browser.
+ * Returns the one jackpot Socket.IO client, creating it on first use.
+ * Same-origin + proxy: no CORS from the browser.
  */
-export function createJackpotSocket() {
+export function getSharedJackpotSocket() {
   if (!isSocketEnabled()) return null
+  if (sharedJackpotSocket) return sharedJackpotSocket
 
   const token = getAuthToken()
 
-  return io(getSocketUrl(), {
+  sharedJackpotSocket = io(getSocketUrl(), {
     path: SOCKET_PATH,
     // Polling first (Socket.IO default): WSS upgrade often fails behind Cloudflare / TLS edge; polling over HTTPS works.
     transports: SOCKET_FORCE_POLLING ? ['polling'] : ['polling', 'websocket'],
@@ -320,10 +325,23 @@ export function createJackpotSocket() {
     reconnectionAttempts: 8,
     reconnectionDelay: 1000,
     timeout: 20000,
-    forceNew: true,
+    forceNew: false,
     // Omit `auth` when logged out — some servers reject `{}` with "server error".
     ...(token ? { auth: { token } } : {})
   })
+  return sharedJackpotSocket
+}
+
+/** Disconnect the shared client (e.g. full app teardown). Next `getSharedJackpotSocket()` creates a new one. */
+export function destroySharedJackpotSocket() {
+  if (!sharedJackpotSocket) return
+  sharedJackpotSocket.disconnect()
+  sharedJackpotSocket = null
+}
+
+/** @deprecated Prefer `getSharedJackpotSocket()` — one connection per page. */
+export function createJackpotSocket() {
+  return getSharedJackpotSocket()
 }
 
 export async function getRound({ potid = 1, history = true, lucky = true } = {}) {

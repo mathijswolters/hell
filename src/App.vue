@@ -165,7 +165,7 @@ export default {
     }
   },
   beforeUnmount() {
-    teardownJackpotNavSocket()
+    teardownJackpotNavSocket(true)
     window.removeEventListener('resize', this.updateScreenWidth)
   }
 }
