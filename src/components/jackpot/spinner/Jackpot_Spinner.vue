@@ -26,16 +26,16 @@
       </div>
       <div
         v-else
-        class="flex flex-wrap items-center justify-center w-full h-full gap-x-2 text-center px-2"
+        class="flex h-full w-full flex-col items-center justify-center gap-y-2 px-2 text-center"
       >
         <div
-          class="w-[50px] h-[50px] sm:w-[72px] sm:h-[72px] rounded-[4px] bg-no-repeat bg-center bg-cover"
+          class="h-[50px] w-[50px] shrink-0 rounded-[4px] bg-cover bg-center bg-no-repeat sm:h-[72px] sm:w-[72px]"
           :style="{
             backgroundImage: `url(${getAvatar(winner)})`,
           }"
         ></div>
 
-        <span class="text-white font-Rubik font-bold text-base sm:text-xl">
+        <span class="max-w-full text-white font-Rubik font-bold text-base sm:text-xl">
           <span
             class="text-[rgba(255,191,20,1)] font-Rubik text-base sm:text-xl font-bold"
             >{{ winner.name }}
@@ -459,7 +459,7 @@ export default {
 
             centeredIndex = centeredIndex % reelItemsCount;
 
-            const correctionFinalX = finalX - 63;
+            const correctionFinalX = finalX;
             this.unboxReelStyle = {
               transform: `translateX(${correctionFinalX}px) translateY(0px)`,
               transition: "transform 0.15s ease-out",
@@ -580,7 +580,7 @@ export default {
 
             centeredIndex = centeredIndex % reelItemsCount;
 
-            const correctionFinalX = finalX - 66;
+            const correctionFinalX = finalX;
             this.unboxReelStyle = {
               transform: `translateX(${correctionFinalX}px) translateY(0px)`,
               transition: "transform 0.15s ease-out",
@@ -795,7 +795,6 @@ export default {
   },
   computed: {
     effectiveAnimationType() {
-      // return 1;
       const n = Number(this.animationType);
       if (!Number.isFinite(n) || n < 1) return 1;
       return Math.min(4, Math.floor(n));
