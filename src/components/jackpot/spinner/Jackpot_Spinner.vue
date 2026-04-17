@@ -353,6 +353,23 @@ export default {
       this.winner = this.spinWinner || fallbackPlayer || null;
     },
 
+    /**
+     * translateX for the reel (flex-centered in the viewport) so slot `slotIndex` aligns with
+     * the spinner center. Without this, `START_X - slotIndex * stride` moves the strip entirely
+     * off-screen for large indices and avatars vanish mid-spin.
+     */
+    reelTranslateXForCenteredSlot(reelItems, slotIndex, itemWidth) {
+      const reelLen = reelItems * itemWidth;
+      return reelLen / 2 - itemWidth / 2 - slotIndex * itemWidth;
+    },
+    /** Inverse of reelTranslateXForCenteredSlot (approximate slot index from translateX). */
+    approxSlotIndexFromTranslateX(reelItems, translateX, itemWidth) {
+      const reelLen = reelItems * itemWidth;
+      let idx = Math.round((reelLen / 2 - itemWidth / 2 - translateX) / itemWidth);
+      const n = reelItems;
+      return ((idx % n) + n) % n;
+    },
+
     /** Hell GG Version-1 (`Hell GG/Version-1/.../Jackpot_Spinner.vue`). */
     _runSpinHellV1(index, game) {
       const reelIdx = index + 1;
@@ -370,15 +387,13 @@ export default {
       }
       this.winner = resolved || this.unboxReels[reelIdx][winnerIndex];
 
-      const TOTAL_SPIN_MS = this.spinDurationMs;
+      const TOTAL_SPIN_MS = 30000;
       const ITEM_WIDTH = 70;
       const START_X = 2535;
-      const LOOPS = 0;
       const REEL_LENGTH = reelItems * ITEM_WIDTH;
-      const WINNER_INDEX = 100;
-      const totalDistance = LOOPS * REEL_LENGTH + WINNER_INDEX * ITEM_WIDTH;
-      const targetIndex = LOOPS * reelItems + WINNER_INDEX;
-      const finalX = START_X - targetIndex * ITEM_WIDTH;
+      const WINNER_INDEX = winnerIndex;
+      const finalX = this.reelTranslateXForCenteredSlot(reelItems, winnerIndex, ITEM_WIDTH);
+      const totalDistance = START_X - finalX;
       this.unboxReelStyle = {
         transform: `translateX(${finalX}px) translateY(0px)`,
         transition: "transform 0.3s ease-out",
@@ -435,21 +450,16 @@ export default {
               centeredIndex < 0 ||
               centeredIndex >= reelItemsCount
             ) {
-              centeredIndex =
-                Math.round((START_X - lastX) / ITEM_WIDTH) % reelItemsCount;
-              if (centeredIndex < 0) centeredIndex += reelItemsCount;
+              centeredIndex = this.approxSlotIndexFromTranslateX(
+                reelItemsCount,
+                lastX,
+                ITEM_WIDTH
+              );
             }
 
             centeredIndex = centeredIndex % reelItemsCount;
 
-            const correctionTargetIndex = LOOPS * reelItemsCount + centeredIndex;
-            const correctionFinalX =
-              START_X -
-              correctionTargetIndex * ITEM_WIDTH +
-              START_X +
-              correctionTargetIndex +
-              ITEM_WIDTH -
-              63;
+            const correctionFinalX = finalX - 63;
             this.unboxReelStyle = {
               transform: `translateX(${correctionFinalX}px) translateY(0px)`,
               transition: "transform 0.15s ease-out",
@@ -481,7 +491,7 @@ export default {
       this.animationFrameId = requestAnimationFrame(animate);
     },
 
-    /** Hell GG Version-2 — same as V1 but travel index 104, correction −66, delayed complete. */
+    /** Hell GG Version-2 — same as V1 but correction −66, delayed complete. */
     _runSpinHellV2(index, game) {
       const reelIdx = index + 1;
       this.unboxRunning = true;
@@ -501,12 +511,10 @@ export default {
       const TOTAL_SPIN_MS = this.spinDurationMs;
       const ITEM_WIDTH = 70;
       const START_X = 2535;
-      const LOOPS = 0;
       const REEL_LENGTH = reelItems * ITEM_WIDTH;
-      const WINNER_INDEX = 104;
-      const totalDistance = LOOPS * REEL_LENGTH + WINNER_INDEX * ITEM_WIDTH;
-      const targetIndex = LOOPS * reelItems + WINNER_INDEX;
-      const finalX = START_X - targetIndex * ITEM_WIDTH;
+      const WINNER_INDEX = winnerIndex;
+      const finalX = this.reelTranslateXForCenteredSlot(reelItems, winnerIndex, ITEM_WIDTH);
+      const totalDistance = START_X - finalX;
       this.unboxReelStyle = {
         transform: `translateX(${finalX}px) translateY(0px)`,
         transition: "transform 0.3s ease-out",
@@ -563,21 +571,16 @@ export default {
               centeredIndex < 0 ||
               centeredIndex >= reelItemsCount
             ) {
-              centeredIndex =
-                Math.round((START_X - lastX) / ITEM_WIDTH) % reelItemsCount;
-              if (centeredIndex < 0) centeredIndex += reelItemsCount;
+              centeredIndex = this.approxSlotIndexFromTranslateX(
+                reelItemsCount,
+                lastX,
+                ITEM_WIDTH
+              );
             }
 
             centeredIndex = centeredIndex % reelItemsCount;
 
-            const correctionTargetIndex = LOOPS * reelItemsCount + centeredIndex;
-            const correctionFinalX =
-              START_X -
-              correctionTargetIndex * ITEM_WIDTH +
-              START_X +
-              correctionTargetIndex +
-              ITEM_WIDTH -
-              66;
+            const correctionFinalX = finalX - 66;
             this.unboxReelStyle = {
               transform: `translateX(${correctionFinalX}px) translateY(0px)`,
               transition: "transform 0.15s ease-out",
@@ -792,6 +795,7 @@ export default {
   },
   computed: {
     effectiveAnimationType() {
+      // return 1;
       const n = Number(this.animationType);
       if (!Number.isFinite(n) || n < 1) return 1;
       return Math.min(4, Math.floor(n));
