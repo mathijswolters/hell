@@ -38,7 +38,12 @@
             <div
               class="text-[#ff3435] text-base font-medium font-['Rubik'] uppercase leading-normal absolute top-full sm:mt-2 right-0"
             >
-              36%
+              {{
+                Number(biggestWinChancePercent).toLocaleString(undefined, {
+                  maximumFractionDigits: 2,
+                  minimumFractionDigits: 2
+                })
+              }}%
             </div>
             <img
               src="../../assets/icons/cup.svg"
@@ -339,7 +344,8 @@ import {
   potItemsFlattenedForDisplay,
   serverTimestampToMs,
   toNumber,
-  tradeOfferUrlFromJackpotRollPayload
+  tradeOfferUrlFromJackpotRollPayload,
+  jackpotSpinDurationFromRollValue
 } from '@/services/jackpotClient'
 import { getSteamId, isLoggedIn } from '@/auth/session'
 import { useJackpotSocket } from '@/composables/useJackpotSocket'
@@ -348,6 +354,46 @@ import { useJackpotSocket } from '@/composables/useJackpotSocket'
 const JACKPOT_SPIN_DURATION_MS = 30000
 /** After 30s spin: up to ~1s settle + 2s reel winner + detail; keep rail until `@complete`. */
 const JACKPOT_SPIN_RAIL_EXTRA_MS = 4000
+
+/** Remember finished rolls so a replayed `jackpot:roll` after refresh does not re-run the reel. */
+const JACKPOT_COMPLETED_ROLL_STORAGE = 'hellgg:jackpotCompletedRoll'
+
+function readJackpotCompletedRollEntry(potId) {
+  try {
+    const raw = sessionStorage.getItem(JACKPOT_COMPLETED_ROLL_STORAGE)
+    if (!raw) return null
+    const o = JSON.parse(raw)
+    const e = o?.[String(potId)]
+    if (!e || typeof e.rollSig !== 'string' || typeof e.gameId !== 'string') return null
+    return e
+  } catch {
+    return null
+  }
+}
+
+function writeJackpotCompletedRollEntry(potId, gameId, rollSig) {
+  try {
+    const raw = sessionStorage.getItem(JACKPOT_COMPLETED_ROLL_STORAGE)
+    let o = {}
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object') o = parsed
+    }
+    o[String(potId)] = { gameId: String(gameId ?? ''), rollSig, ts: Date.now() }
+    sessionStorage.setItem(JACKPOT_COMPLETED_ROLL_STORAGE, JSON.stringify(o))
+  } catch (_) {}
+}
+
+function clearJackpotCompletedRollEntry(potId) {
+  try {
+    const raw = sessionStorage.getItem(JACKPOT_COMPLETED_ROLL_STORAGE)
+    if (!raw) return
+    const o = JSON.parse(raw)
+    if (!o || typeof o !== 'object') return
+    delete o[String(potId)]
+    sessionStorage.setItem(JACKPOT_COMPLETED_ROLL_STORAGE, JSON.stringify(o))
+  } catch (_) {}
+}
 
 export default {
   name: 'Jackpot_Lobby',
@@ -402,6 +448,8 @@ export default {
       pendingWinnerTradeUrl: '',
       /** Dedupes opening the winner choice modal for the same roll. */
       lastJackpotWinnerModalSig: '',
+      /** From `jackpot:roll` `duration` (or REST `spin_duration_ms`) — reel length for this roll. */
+      rollSpinDurationMs: null,
       /**
        * After the reel animation completes, `refreshRound` often reapplies `serverRoundEndMs`.
        * If that `end` is still in the past, `byEnd` becomes true again and the spinner rail
@@ -430,6 +478,13 @@ export default {
         if (sid != null && String(sid).trim() !== '') ids.add(String(sid))
       }
       return ids.size >= 2
+    },
+    /** `biggest_win.chance` as 0–100 for display (API may send 0–1). */
+    biggestWinChancePercent() {
+      let c = Number(this.biggest_win?.chance)
+      if (!Number.isFinite(c)) c = 0
+      if (c > 0 && c <= 1) c *= 100
+      return Math.min(100, Math.max(0, c))
     },
     /**
      * Betting countdown is off during spin reveal or after server `end` has passed.
@@ -651,6 +706,8 @@ export default {
     /** New betting round (socket): clear fairness and collapse winner rail for the next round. */
     resetFairnessForNewRound() {
       this.fairness = { ticket: '', hash: '', secret: '', eos: '' }
+      clearJackpotCompletedRollEntry(this.potId)
+      this.rollSpinDurationMs = null
       this.rollAnimationType = 1
       this.jackpotWinnerRevealVisible = false
       this.jackpotFairnessShownAfterSpin = false
@@ -681,6 +738,32 @@ export default {
       if (!sid || !winner?.steamid) return false
       return String(winner.steamid) === String(sid)
     },
+    /** Winner for the reel from a `jackpot:roll` payload (merged with `game.players` when possible). */
+    resolveJackpotRollWinnerPlayer(payload) {
+      const { winner, winner_data } = payload || {}
+      let spinTarget = null
+      const winnerPayload = winner_data || winner
+      if (winnerPayload) {
+        try {
+          spinTarget = normalizePlayer(winnerPayload)
+        } catch (_) {
+          spinTarget = winnerPayload
+        }
+        if (this.game.players?.length) {
+          const matched = this.game.players.find(
+            (player) =>
+              player.steamid &&
+              winnerPayload.steamid &&
+              String(player.steamid) === String(winnerPayload.steamid)
+          )
+          if (matched) spinTarget = { ...matched, ...spinTarget }
+        }
+      }
+      if (!spinTarget && this.game.players?.length) {
+        spinTarget = this.game.players[0]
+      }
+      return spinTarget
+    },
     /**
      * Round ends after ~30s; backend sends `jackpot:roll` with winner, ticket, avatars.
      * Spin + winner UI are driven only by that event (not by the local timer hitting 0).
@@ -704,13 +787,14 @@ export default {
         String(this.fairness.ticket ?? '').replace(/[^\d.-]/g, ''),
         NaN
       )
-      this.spinVisibleUntilMs = this.nowMs() + JACKPOT_SPIN_DURATION_MS + JACKPOT_SPIN_RAIL_EXTRA_MS
+      const spinMs = this.rollSpinDurationMs ?? JACKPOT_SPIN_DURATION_MS
+      this.spinVisibleUntilMs = this.nowMs() + spinMs + JACKPOT_SPIN_RAIL_EXTRA_MS
       this.$nextTick(() => {
         this.$refs.spinner?.demoSpin(
           target,
           syncSeed || undefined,
           Number.isFinite(winningTicket) ? winningTicket : undefined,
-          JACKPOT_SPIN_DURATION_MS
+          spinMs
         )
       })
     },
@@ -719,6 +803,11 @@ export default {
       this.jackpotWinnerRevealVisible = true
       if (this.hasJackpotFairnessFromRoll) {
         this.jackpotFairnessShownAfterSpin = true
+      }
+
+      const rollSigPersist = `${String(this.fairness.ticket ?? '')}|${String(this.fairness.hash ?? '')}`
+      if (rollSigPersist !== '|') {
+        writeJackpotCompletedRollEntry(this.potId, this.game?._id, rollSigPersist)
       }
 
       const winnerForResults = this.pendingSpinWinner
@@ -773,6 +862,9 @@ export default {
           round.players = mergeRoundPlayersPreservingItems(prev, round.players)
           this.game = round
           this.syncServerTimeFromGame(round)
+          if (round.spin_duration_ms != null && round.spin_duration_ms > 0) {
+            this.rollSpinDurationMs = round.spin_duration_ms
+          }
         }
         if (!skipApplyTiming) this.applyRoundTiming()
       } catch (error) {
@@ -808,14 +900,19 @@ export default {
       const startMs = serverTimestampToMs(start)
       const endMs = serverTimestampToMs(end)
       if (!startMs || !endMs) return
-      this.jackpotSpinDone = false
-      this.pendingSpinWinner = null
+      const now = this.nowMs()
+      // Only reset spin flags while betting is still open. After `end`, REST/socket sync must not
+      // clear `jackpotSpinDone` or a replayed `jackpot:roll` will start the reel again on refresh.
+      if (now < endMs) {
+        this.jackpotSpinDone = false
+        this.pendingSpinWinner = null
+      }
       this.serverRoundStartMs = startMs
       this.serverRoundEndMs = endMs
       this.timerTotalSeconds = Math.max(1, Math.ceil((endMs - startMs) / 1000))
-      const now = this.nowMs()
       // New round with betting still open — allow spinner rail again when this round's end passes.
       if (now < endMs) {
+        this.rollSpinDurationMs = null
         this.suppressJackpotSpinnerRailAfterReveal = false
         this.jackpotSpinnerRailAllowed = true
       } else {
@@ -1004,6 +1101,9 @@ export default {
             round.players = mergeRoundPlayersPreservingItems(prev, round.players)
             this.game = round
             this.syncServerTimeFromGame(round)
+            if (round.spin_duration_ms != null && round.spin_duration_ms > 0) {
+              this.rollSpinDurationMs = round.spin_duration_ms
+            }
             this.applyRoundTiming()
           }
           if (Array.isArray(payload.history)) {
@@ -1035,6 +1135,7 @@ export default {
           if (start != null && end != null) {
             if (send != null) this.syncServerTimeFromTimestamp(send)
             this.lastJackpotRollSignature = ''
+            this.rollSpinDurationMs = null
             this.pendingWinnerTradeUrl = ''
             this.lastJackpotWinnerModalSig = ''
             this.suppressJackpotSpinnerRailAfterReveal = false
@@ -1043,11 +1144,65 @@ export default {
           }
         },
         onRoll: async (payload) => {
-          const { ticket, hash, block, avatars, winner, winner_data, animation_type } =
-            payload || {}
+          const {
+            ticket,
+            hash,
+            block,
+            avatars,
+            animation_type,
+            duration,
+            spin_duration
+          } = payload || {}
           const rollSig = `${String(ticket ?? '')}|${String(hash ?? '')}`
           if (rollSig === this.lastJackpotRollSignature && rollSig !== '|') return
+
+          const completed = readJackpotCompletedRollEntry(this.potId)
+          const gameIdStr = String(this.game?._id ?? '')
+          if (
+            completed &&
+            rollSig !== '|' &&
+            completed.rollSig === rollSig &&
+            String(completed.gameId) === gameIdStr
+          ) {
+            this.lastJackpotRollSignature = rollSig
+            this.rollSpinDurationMs = jackpotSpinDurationFromRollValue(
+              duration ?? spin_duration,
+              JACKPOT_SPIN_DURATION_MS
+            )
+            this.fairness.ticket = ticket ?? ''
+            this.fairness.hash = hash ?? ''
+            this.fairness.eos =
+              block && typeof block === 'object' && block.id != null
+                ? block.id
+                : block?.id ?? block ?? this.fairness.eos
+            this.fairness.secret = this.fairness.secret || ''
+            this.rollAvatars = Array.isArray(avatars) ? avatars : []
+            const parsedAnimationType = Number(animation_type)
+            this.rollAnimationType =
+              Number.isFinite(parsedAnimationType) && parsedAnimationType >= 1
+                ? Math.min(4, Math.floor(parsedAnimationType))
+                : 1
+            this.pendingWinnerTradeUrl = tradeOfferUrlFromJackpotRollPayload(payload)
+            this.jackpotSpinDone = true
+            this.jackpotWinnerRevealVisible = true
+            this.jackpotFairnessShownAfterSpin = this.hasJackpotFairnessFromRoll
+            this.suppressJackpotSpinnerRailAfterReveal = false
+            this.jackpotSpinnerRailAllowed = true
+            this.pendingSpinWinner = null
+            this.spinVisibleUntilMs = null
+            const spinTarget = this.resolveJackpotRollWinnerPlayer(payload)
+            this.$nextTick(() => {
+              this.$refs.spinner?.showStaticRollComplete?.(spinTarget)
+            })
+            return
+          }
+
           this.lastJackpotRollSignature = rollSig
+
+          this.rollSpinDurationMs = jackpotSpinDurationFromRollValue(
+            duration ?? spin_duration,
+            JACKPOT_SPIN_DURATION_MS
+          )
 
           this.fairness.ticket = ticket ?? ''
           this.fairness.hash = hash ?? ''
@@ -1064,27 +1219,7 @@ export default {
               : 1
           this.pendingWinnerTradeUrl = tradeOfferUrlFromJackpotRollPayload(payload)
 
-          let spinTarget = null
-          const winnerPayload = winner_data || winner
-          if (winnerPayload) {
-            try {
-              spinTarget = normalizePlayer(winnerPayload)
-            } catch (_) {
-              spinTarget = winnerPayload
-            }
-            if (this.game.players?.length) {
-              const matched = this.game.players.find(
-                (player) =>
-                  player.steamid &&
-                  winnerPayload.steamid &&
-                  String(player.steamid) === String(winnerPayload.steamid)
-              )
-              if (matched) spinTarget = { ...matched, ...spinTarget }
-            }
-          }
-          if (!spinTarget && this.game.players?.length) {
-            spinTarget = this.game.players[0]
-          }
+          const spinTarget = this.resolveJackpotRollWinnerPlayer(payload)
 
           if (spinTarget && this.game.players?.length) {
             this.pendingSpinWinner = spinTarget
@@ -1092,8 +1227,8 @@ export default {
           } else if (spinTarget) {
             this.pendingSpinWinner = spinTarget
             this.startJackpotSpinFromRoll()
-        } else {
-          this.demoOpen()
+          } else {
+            this.demoOpen()
           }
         },
         onLastHistory: async (payload) => {

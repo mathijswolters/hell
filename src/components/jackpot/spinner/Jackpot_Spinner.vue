@@ -185,6 +185,34 @@ export default {
       this.syncSeed = null;
     },
     /**
+     * Skip reel animation (e.g. `jackpot:roll` replay after refresh when the spin already finished).
+     * Shows the winner summary row without emitting `complete`.
+     */
+    showStaticRollComplete(winnerPlayer) {
+      if (this.winnerRevealHoldTimer) {
+        clearTimeout(this.winnerRevealHoldTimer);
+        this.winnerRevealHoldTimer = null;
+      }
+      if (this.unboxReelsSpinTimeout) {
+        clearTimeout(this.unboxReelsSpinTimeout);
+        this.unboxReelsSpinTimeout = null;
+      }
+      if (this.animationFrameId) {
+        cancelAnimationFrame(this.animationFrameId);
+        this.animationFrameId = null;
+      }
+      if (this.unboxReelsPosRepeater) {
+        cancelAnimationFrame(this.unboxReelsPosRepeater);
+        this.unboxReelsPosRepeater = null;
+      }
+      this.unboxRunning = false;
+      this.spinPhase = "idle";
+      this.unboxGames = [];
+      this.spinWinner = winnerPlayer || null;
+      this.finalizeSpinWinnerDisplay(null);
+      this.finsihed_spinning = true;
+    },
+    /**
      * @param {object} winnerPlayer — winner from backend (shown at end of spin)
      * @param {string} [syncSeed] — fairness bundle; same value ⇒ identical reel + RNG on all clients
      * @param _winningTicket — reserved
@@ -387,7 +415,7 @@ export default {
       }
       this.winner = resolved || this.unboxReels[reelIdx][winnerIndex];
 
-      const TOTAL_SPIN_MS = 30000;
+      const TOTAL_SPIN_MS = this.spinDurationMs;
       const ITEM_WIDTH = 70;
       const START_X = 2535;
       const REEL_LENGTH = reelItems * ITEM_WIDTH;

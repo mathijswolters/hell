@@ -83,6 +83,16 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(num) ? num : fallback
 }
 
+/**
+ * Spin length from `jackpot:roll` / round API: ms if ≥1000, otherwise treated as seconds.
+ */
+export function jackpotSpinDurationFromRollValue(raw, fallbackMs = 30000) {
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n <= 0) return fallbackMs
+  const ms = n >= 1000 ? n : n * 1000
+  return Math.max(1000, Math.round(ms))
+}
+
 /** Steam CDN host for economy item images (same hash as fastly/cloud; no /360fx360f suffix). */
 const STEAM_ECONOMY_IMAGE_AKAMAI = 'https://community.akamai.steamstatic.com/economy/image'
 
@@ -231,6 +241,14 @@ function normalizeRound(round) {
     players = base.deposits.map(normalizePlayer)
   }
 
+  const durationRaw = base?.duration ?? base?.spin_duration ?? base?.roll_duration
+  let spin_duration_ms = null
+  if (durationRaw != null && String(durationRaw).trim() !== '') {
+    const dn = Number(durationRaw)
+    if (Number.isFinite(dn) && dn > 0) {
+      spin_duration_ms = jackpotSpinDurationFromRollValue(dn, 30000)
+    }
+  }
   return {
     _id: base?._id ?? base?.id ?? base?.gameid ?? 1,
     potid: toNumber(base?.potid ?? round?.potid, 1),
@@ -240,7 +258,9 @@ function normalizeRound(round) {
     winner: base?.winner ?? null,
     server_time: toNumber(round?.server_time ?? base?.server_time, 0),
     start: toNumber(base?.start, 0),
-    end: toNumber(base?.end, 0)
+    end: toNumber(base?.end, 0),
+    /** Milliseconds for the reel spin when the API sends `duration` / `spin_duration` (refresh before socket). */
+    spin_duration_ms
   }
 }
 
