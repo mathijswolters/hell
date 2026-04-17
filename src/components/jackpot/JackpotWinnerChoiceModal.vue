@@ -1,14 +1,9 @@
 <template>
   <div
-    class="relative w-full max-w-[480px] rounded-lg border border-[#6b1515] bg-gradient-to-b from-[#3a0505] via-[#2e0101] to-[#1a0101] shadow-2xl overflow-hidden"
+    class="relative flex h-[766px] w-[534px] max-w-full shrink-0 flex-col overflow-hidden rounded-lg border border-[#530000] bg-[radial-gradient(ellipse_36.32%_58.01%_at_50%_0%,rgba(255,216,9,0.3)_0%,#530000_100%)] backdrop-blur-[32px]"
   >
     <div class="pointer-events-none absolute inset-0 overflow-hidden rounded-lg" aria-hidden="true">
-      <div class="confetti confetti-a" />
-      <div class="confetti confetti-b" />
-      <div class="confetti confetti-c" />
-      <div class="confetti confetti-d" />
-      <div class="confetti confetti-e" />
-      <div class="streamer" />
+      <img src="../../assets/img/congratulations.png" alt="" class="w-full h-full object-cover w-[534px] h-[296px]">
     </div>
 
     <button
@@ -20,23 +15,33 @@
       <XMarkIcon class="w-6 h-6 stroke-2" />
     </button>
 
-    <div class="relative px-3 pt-9 pb-5 sm:px-2 sm:pb-6">
-      <div class="flex flex-col items-center text-center">
-        <div
-          class="h-[72px] w-[72px] shrink-0 rounded-full bg-[#1a0101] ring-2 ring-amber-500/60 ring-offset-2 ring-offset-[#2e0101] bg-cover bg-center shadow-inner"
-          :style="{ backgroundImage: `url(${displayAvatar})` }"
-        />
+    <div
+      class="relative z-[1] flex min-h-0 flex-1 flex-col px-3 pt-9 pb-5 sm:px-2 sm:pb-6"
+    >
+      <div class="flex h-[296px] shrink-0 flex-col items-center justify-center text-center">
+        <div class="relative shrink-0">
+          <img
+            src="../../assets/img/Union.png"
+            alt=""
+            class="pointer-events-none absolute bottom-full left-1/2  mb-[-12px] h-[52px] w-auto max-w-[120px] -translate-x-1/2 object-contain select-none"
+            aria-hidden="true"
+          />
+          <div
+            class="h-[124px] w-[124px] relative z-10 shrink-0 rounded-full bg-[#1a0101] ring-2 ring-amber-500/60 ring-offset-2 ring-offset-[#530000] bg-cover bg-center shadow-inner brightness-125"
+            :style="{ backgroundImage: `url(${displayAvatar})` }"
+          />
+        </div>
         <h2
           class="mt-4 flex flex-wrap items-baseline justify-center gap-x-1.5 gap-y-0 font-Rubik font-black uppercase tracking-wide text-white text-lg sm:text-xl leading-tight"
         >
-          <span class="text-white font-bold">You've won</span>
-          <span class="text-[#4ade80] tabular-nums font-bold">${{ formattedPot }}</span>
+          <span class="text-white font-bold font-Rubik text-[35px]">You've won</span>
+          <span class="text-[#4ade80] tabular-nums font-bold font-Rubik text-[35px]">${{ formattedPot }}</span>
         </h2>
       </div>
 
-      <div class="relative mt-5">
+      <div class="relative mt-5 flex min-h-0 flex-1 flex-col">
         <div
-          class="grid-scroll max-h-[min(42vh,260px)] overflow-y-auto overscroll-contain pr-0.5"
+          class="grid-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5"
           :class="{ 'pb-1': displayItems.length > 8 }"
         >
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -51,12 +56,12 @@
               />
               <div class="mt-1 flex min-h-0 flex-1 flex-col justify-end gap-0.5">
                 <p
-                  class="min-w-0 truncate px-0.5 text-[10px] sm:text-[11px] font-semibold font-Rubik text-[#e8d4d4] uppercase leading-tight"
+                  class="min-w-0 truncate px-0.5 text-[16px] sm:text-[16px] font-semibold font-Rubik text-[#e8d4d4] uppercase leading-tight"
                   :title="it.name"
                 >
                   {{ it.name }}
                 </p>
-                <p class="shrink-0 text-white font-bold font-Rubik text-[10px] sm:text-xs tabular-nums leading-none">
+                <p class="shrink-0 text-white font-bold font-Rubik text-[16px] tabular-nums leading-none">
                   ${{ formatPrice(it.price) }}
                 </p>
               </div>
@@ -65,18 +70,18 @@
         </div>
         <div
           v-if="displayItems.length > 8"
-          class="pointer-events-none absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-[#2e0101] to-transparent rounded-b-sm"
+          class="pointer-events-none absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-[#530000] to-transparent rounded-b-sm"
           aria-hidden="true"
         />
       </div>
 
-      <div class="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+      <div class="mt-auto grid shrink-0 grid-cols-1 gap-2 pt-5 sm:grid-cols-2 sm:gap-3">
         <button
           type="button"
           class="flex w-full min-w-0 items-center justify-center min-h-[48px] px-3 rounded-none bg-[#f15840] hover:opacity-95 active:opacity-90 transition-opacity"
           @click="onDoubleDown"
         >
-          <span class="font-Rubik font-extrabold text-white text-xs sm:text-sm uppercase tracking-wider">
+          <span class="font-Rubik font-extrabold text-white text-[16px] uppercase tracking-wider">
             Double Down
           </span>
         </button>
@@ -97,9 +102,9 @@
             />
           </span>
           <span
-            class="font-Rubik font-extrabold text-white text-xs sm:text-sm uppercase tracking-wider whitespace-nowrap"
+            class="font-Rubik font-extrabold text-white text-[16px] uppercase tracking-wider whitespace-nowrap"
           >
-            Accept trade offer
+            Accept skins
           </span>
         </button>
       </div>
@@ -168,7 +173,6 @@ export default {
     onAcceptTrade() {
       if (!this.hasTradeUrl) return
       window.open(this.tradeOfferUrl.trim(), '_blank', 'noopener,noreferrer')
-      closeModal()
     }
   }
 }

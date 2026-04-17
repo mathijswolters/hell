@@ -733,7 +733,6 @@ export default {
       })
     },
     isWinnerCurrentUser(winner) {
-      // const sid = '76561197984485194'
       const sid = getSteamId()
       if (!sid || !winner?.steamid) return false
       return String(winner.steamid) === String(sid)
@@ -823,7 +822,8 @@ export default {
         this.lastJackpotWinnerModalSig = rollSig
         const items = potItemsFlattenedForDisplay(this.game?.players)
         openModal('jackpot winner choice', {
-          tradeOfferUrl: this.pendingWinnerTradeUrl,
+          tradeOfferUrl: 'https://steamcommunity.com/tradeoffer/new/?partner=1234567890&token=1234567890',
+          // tradeOfferUrl: this.pendingWinnerTradeUrl,
           potValue: this.pot_value,
           potId: this.potId,
           loadInventory: () => this.loadUserInventory(),
