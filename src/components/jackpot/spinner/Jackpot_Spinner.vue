@@ -225,7 +225,8 @@ export default {
       this.syncSeed =
         syncSeed != null && String(syncSeed).length > 0 ? String(syncSeed) : null;
       if (spinDurationMs != null && Number.isFinite(Number(spinDurationMs))) {
-        this.spinDurationMs = Math.max(1000, Number(spinDurationMs));
+        this.spinDurationMs = 30000;
+        // this.spinDurationMs = Math.max(1000, Number(spinDurationMs));
       }
       let games = [];
       setTimeout(() => {
