@@ -175,11 +175,23 @@ export default {
         });
       }, WINNER_REVEAL_HOLD_MS);
     },
+    /** Stops the per-frame reel index tracker (must run before each new spin or RAF chains stack). */
+    stopReelPosTracking() {
+      if (this.unboxReelsPosRepeater != null) {
+        cancelAnimationFrame(this.unboxReelsPosRepeater);
+        this.unboxReelsPosRepeater = null;
+      }
+    },
+    resetReelPositionState() {
+      this.unboxReelsPos = 20;
+      this.displayCenterIndex = 20;
+    },
     resetWinnerReveal() {
       if (this.winnerRevealHoldTimer) {
         clearTimeout(this.winnerRevealHoldTimer);
         this.winnerRevealHoldTimer = null;
       }
+      this.stopReelPosTracking();
       this.finsihed_spinning = false;
       this.spinWinner = null;
       this.syncSeed = null;
@@ -201,10 +213,7 @@ export default {
         cancelAnimationFrame(this.animationFrameId);
         this.animationFrameId = null;
       }
-      if (this.unboxReelsPosRepeater) {
-        cancelAnimationFrame(this.unboxReelsPosRepeater);
-        this.unboxReelsPosRepeater = null;
-      }
+      this.stopReelPosTracking();
       this.unboxRunning = false;
       this.spinPhase = "idle";
       this.unboxGames = [];
@@ -219,6 +228,8 @@ export default {
      * @param {number} [spinDurationMs] — animation length
      */
     demoSpin(winnerPlayer, syncSeed, _winningTicket, spinDurationMs) {
+      this.stopReelPosTracking();
+      this.resetReelPositionState();
       this.spinPhase = "idle";
       this.finsihed_spinning = false;
       this.spinWinner = winnerPlayer || null;
@@ -255,6 +266,8 @@ export default {
     },
 
     unboxSpin(winnerPlayer, syncSeed) {
+      this.stopReelPosTracking();
+      this.resetReelPositionState();
       this.spinPhase = "idle";
       this.finsihed_spinning = false;
       this.spinWinner = winnerPlayer || null;
@@ -297,7 +310,14 @@ export default {
     },
     /** Each player's avatar count ≈ their chance % of `reelSlots` (no ticket ranges). */
     buildChanceWeightedReel(players, reelSlots, random01 = Math.random) {
-      const list = Array.isArray(players) ? players.filter(Boolean) : [];
+      const list = Array.isArray(players)
+        ? players.filter(Boolean).map((p) => {
+            const copy = { ...p };
+            const a = copy.avatar != null ? String(copy.avatar).trim() : "";
+            copy.avatar = a !== "" ? a : "/img/fallback.png";
+            return copy;
+          })
+        : [];
       const placeholder = {
         name: "—",
         avatar: "/img/fallback.png",
@@ -340,27 +360,40 @@ export default {
       return this.shuffleArray(out, random01);
     },
     unboxGetReelsPos() {
-      const spinner = this.$refs["unbox-spinner"].getBoundingClientRect();
-      const reel = this.$refs["reel-1"][0].$el.getBoundingClientRect();
+      const spinnerEl = this.$refs["unbox-spinner"];
+      const reelRef = this.$refs["reel-1"];
+      const reelEl = reelRef && reelRef[0] ? reelRef[0].$el : null;
+      if (!spinnerEl || !reelEl) {
+        this.unboxReelsPosRepeater = requestAnimationFrame(this.unboxGetReelsPos);
+        return;
+      }
+      try {
+        const spinner = spinnerEl.getBoundingClientRect();
+        const reel = reelEl.getBoundingClientRect();
 
-      const spinnerCenter = spinner.left + spinner.width / 2;
+        const spinnerCenter = spinner.left + spinner.width / 2;
 
-      const pos = Math.round((spinnerCenter - reel.left - 35) / 70);
+        const pos = Math.round((spinnerCenter - reel.left - 35) / 70);
 
-      const maxPos = this.unboxReels[1] ? this.unboxReels[1].length : 150;
+        const maxPos = this.unboxReels[1] ? this.unboxReels[1].length : 150;
 
-      if (this.unboxReelsPos !== pos && pos >= 0 && pos < maxPos) {
-        this.unboxReelsPos = pos;
+        if (maxPos > 0 && this.unboxReelsPos !== pos && pos >= 0 && pos < maxPos) {
+          this.unboxReelsPos = pos;
+        }
+      } catch (_) {
+        /* refs/layout not ready */
       }
 
       this.unboxReelsPosRepeater = requestAnimationFrame(this.unboxGetReelsPos);
     },
 
     unboxAddReels() {
-      const items = this.unboxGetItems;
+      const items = this.unboxGetItems.map((row) =>
+        row && typeof row === "object" ? { ...row } : { name: "—", avatar: "/img/fallback.png", chance: 0 }
+      );
       this.unboxReels = { 1: [], 2: [], 3: [], 4: [] };
       for (const reel of Object.keys(this.unboxReels)) {
-        this.unboxReels[reel] = [...items];
+        this.unboxReels[reel] = items.map((item) => ({ ...item }));
       }
     },
 
@@ -837,6 +870,8 @@ export default {
     unboxGames: {
       handler(data, dataOld) {
         if (this.unboxGames.length >= 1) {
+          this.stopReelPosTracking();
+          this.resetReelPositionState();
           this.finsihed_spinning = false;
           // Always rebuild so first spin uses syncSeed (created() ran before seed existed).
           this.unboxAddReels();
@@ -877,7 +912,7 @@ export default {
       clearTimeout(this.winnerRevealHoldTimer);
       this.winnerRevealHoldTimer = null;
     }
-    cancelAnimationFrame(this.unboxReelsPosRepeater);
+    this.stopReelPosTracking();
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
     }

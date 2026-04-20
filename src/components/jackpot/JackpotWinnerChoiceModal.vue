@@ -104,7 +104,7 @@
           <span
             class="font-Rubik font-extrabold text-white text-[16px] uppercase tracking-wider whitespace-nowrap"
           >
-            Accept skins
+            Claim winnings
           </span>
         </button>
       </div>
