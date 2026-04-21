@@ -78,17 +78,18 @@
       <div class="mt-auto grid shrink-0 grid-cols-1 gap-2 pt-5 sm:grid-cols-2 sm:gap-3">
         <button
           type="button"
-          class="flex w-full min-w-0 items-center justify-center min-h-[48px] px-3 rounded-none bg-[#f15840] hover:opacity-95 active:opacity-90 transition-opacity"
+          class="flex w-full min-w-0 items-center justify-center min-h-[48px] px-3 rounded-none bg-[#f15840] hover:opacity-95 active:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+          :disabled="!hasWinningsRequestPayload || isSubmittingAction"
           @click="onDoubleDown"
         >
           <span class="font-Rubik font-extrabold text-white text-[16px] uppercase tracking-wider">
-            Double Down
+            Double Down ({{ safeCountdownLabel }}s)
           </span>
         </button>
         <button
           type="button"
           class="flex w-full min-w-0 min-h-[48px] items-center justify-center gap-3 px-3 py-2.5 rounded-none bg-[#04AB53] hover:opacity-95 active:opacity-90 transition-opacity shadow-[0_4px_14px_rgba(4,171,83,0.35)] disabled:opacity-40 disabled:cursor-not-allowed"
-          :disabled="!hasTradeUrl"
+          :disabled="!hasWinningsRequestPayload || isSubmittingAction"
           @click="onAcceptTrade"
         >
           <span
@@ -104,7 +105,7 @@
           <span
             class="font-Rubik font-extrabold text-white text-[16px] uppercase tracking-wider whitespace-nowrap"
           >
-            Claim winnings
+            Claim winnings ({{ safeCountdownLabel }}s)
           </span>
         </button>
       </div>
@@ -114,7 +115,8 @@
 
 <script>
 import { XMarkIcon } from '@heroicons/vue/24/outline'
-import { closeModal, openModal } from '@/modalStore'
+import { closeModal } from '@/modalStore'
+import { claimJackpotWinnings, wagerJackpotWinnings } from '@/services/jackpotClient'
 
 export default {
   name: 'JackpotWinnerChoiceModal',
@@ -123,10 +125,21 @@ export default {
     tradeOfferUrl: { type: String, default: '' },
     potValue: { type: Number, default: 0 },
     potId: { type: Number, default: 1 },
+    gameId: { type: Number, default: null },
+    steamid: { type: String, default: '' },
     loadInventory: { type: Function, default: null },
     deposit: { type: Function, default: null },
     avatar: { type: String, default: '/img/user/userImage.png' },
-    items: { type: Array, default: () => [] }
+    items: { type: Array, default: () => [] },
+    decisionSeconds: { type: Number, default: 20 }
+  },
+  data() {
+    return {
+      countdown: 20,
+      countdownTimer: null,
+      isSubmittingClaim: false,
+      isSubmittingWager: false
+    }
   },
   computed: {
     displayAvatar() {
@@ -145,6 +158,20 @@ export default {
     hasTradeUrl() {
       const s = typeof this.tradeOfferUrl === 'string' ? this.tradeOfferUrl.trim() : ''
       return /^https?:\/\//i.test(s)
+    },
+    hasWinningsRequestPayload() {
+      return (
+        typeof this.steamid === 'string' &&
+        this.steamid.trim().length > 0 &&
+        this.gameId != null &&
+        this.potId != null
+      )
+    },
+    safeCountdownLabel() {
+      return Math.max(0, Number(this.countdown) || 0)
+    },
+    isSubmittingAction() {
+      return this.isSubmittingClaim || this.isSubmittingWager
     }
   },
   methods: {
@@ -155,25 +182,81 @@ export default {
       })
     },
     closeModal() {
+      this.stopDecisionCountdown()
       closeModal()
     },
-    onDoubleDown() {
-      const potId = this.potId
-      const loadInventory = this.loadInventory
-      const deposit = this.deposit
-      closeModal()
-      if (typeof loadInventory === 'function' && typeof deposit === 'function') {
-        openModal('jackpot deposit', {
-          potId,
-          loadInventory,
-          deposit
+    startDecisionCountdown() {
+      this.stopDecisionCountdown()
+      const initial = Number(this.decisionSeconds)
+      this.countdown = Number.isFinite(initial) && initial > 0 ? Math.floor(initial) : 20
+      this.countdownTimer = setInterval(() => {
+        if (this.countdown <= 0) {
+          this.stopDecisionCountdown()
+          return
+        }
+        this.countdown -= 1
+      }, 1000)
+    },
+    stopDecisionCountdown() {
+      if (!this.countdownTimer) return
+      clearInterval(this.countdownTimer)
+      this.countdownTimer = null
+    },
+    showErrorMessage(error, fallbackMessage) {
+      const msg =
+        error?.error_message ||
+        error?.message ||
+        (typeof fallbackMessage === 'string' ? fallbackMessage : 'Request failed')
+      this.$toaster?.error?.(String(msg))
+    },
+    showSuccessMessage(response, fallbackMessage) {
+      const msg =
+        response?.message ||
+        (typeof fallbackMessage === 'string' ? fallbackMessage : 'Action completed.')
+      this.$toaster?.success?.(String(msg))
+    },
+    async onDoubleDown() {
+      if (!this.hasWinningsRequestPayload || this.isSubmittingAction) return
+      this.isSubmittingWager = true
+      try {
+        const response = await wagerJackpotWinnings({
+          steamid: this.steamid.trim(),
+          gameid: this.gameId,
+          potid: this.potId
         })
+        this.showSuccessMessage(response, 'You have successfully re-wagered your winnings.')
+        this.closeModal()
+      } catch (error) {
+        this.showErrorMessage(error, 'Could not re-wager winnings.')
+        console.error('Failed to wager jackpot winnings:', error)
+      } finally {
+        this.isSubmittingWager = false
       }
     },
-    onAcceptTrade() {
-      if (!this.hasTradeUrl) return
-      window.open(this.tradeOfferUrl.trim(), '_blank', 'noopener,noreferrer')
+    async onAcceptTrade() {
+      if (!this.hasWinningsRequestPayload || this.isSubmittingAction) return
+      this.isSubmittingClaim = true
+      try {
+        const response = await claimJackpotWinnings({
+          steamid: this.steamid.trim(),
+          gameid: this.gameId,
+          potid: this.potId
+        })
+        this.showSuccessMessage(response, 'Winnings claimed successfully.')
+        this.closeModal()
+      } catch (error) {
+        this.showErrorMessage(error, 'Could not claim winnings.')
+        console.error('Failed to claim jackpot winnings:', error)
+      } finally {
+        this.isSubmittingClaim = false
+      }
     }
+  },
+  mounted() {
+    this.startDecisionCountdown()
+  },
+  beforeUnmount() {
+    this.stopDecisionCountdown()
   }
 }
 </script>

@@ -18,6 +18,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false
       },
+      '^/coinflip/(host|join|getCoinflips)(\\?.*)?$': {
+        target: API_ORIGIN,
+        changeOrigin: true,
+        secure: false
+      },
       '^/inventory/load(\\?.*)?$': {
         target: API_ORIGIN,
         changeOrigin: true,

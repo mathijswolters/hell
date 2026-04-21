@@ -826,6 +826,8 @@ export default {
           // tradeOfferUrl: this.pendingWinnerTradeUrl,
           potValue: this.pot_value,
           potId: this.potId,
+          gameId: this.game?._id,
+          steamid: String(winnerForResults.steamid || getSteamId() || ''),
           loadInventory: () => this.loadUserInventory(),
           deposit: (skins) => this.depositSelectedSkins(skins),
           avatar: winnerForResults.avatar || '/img/user/userImage.png',

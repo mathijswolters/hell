@@ -6,7 +6,7 @@
       <!-- Header Start -->
       <div class="flex justify-between w-full h-[59px] items-center px-4 bg-[#620101]">
         <span class="font-Rubik font-extrabold text-white text-base"
-          >JOIN COINFLIP #{{ battle._id }}</span
+          >JOIN COINFLIP #{{ resolvedBattle._id }}</span
         >
         <XMarkIcon
           class="w-6 h-6 cursor-pointer hover:scale-110 transition-transform ease-linear duration-150 fill-[#d7b7b7]"
@@ -141,35 +141,59 @@
         <!-- Items Selection Start -->
         <div class="h-[15rem] lg:h-[21.4375rem] w-full relative">
           <div
-            v-if="filteredItems.length >= 24"
-            class="absolute h-10 bottom-0 z-10 w-full ml-4 max-w-[calc(100%-32px)] opacity-90 bg-[linear-gradient(180deg,rgba(83,1,1,0)_20%,#530101_100%)]"
-          ></div>
-          <div
-            class="overflow-y-auto grid w-full py-2 justify-center gap-x-1 gap-y-1 px-2 relative max-h-full"
-            style="grid-template-columns: repeat(auto-fill, 125.5px)"
+            v-if="loadingInventory"
+            class="absolute inset-0 z-20 flex items-center justify-center bg-[rgba(0,0,0,0.25)]"
           >
-            <div
-              v-for="item in filteredItems"
-              :key="item._id"
-              @click="selectItem(item)"
-              class="w-[125.5px] h-[134px] flex flex-col items-center justify-center px-4 cursor-pointer hover:scale-[1.05] transition-transform"
-              :class="{ 'bg-[#8F0E0E]': isSelected(item), 'bg-[#690405]': !isSelected(item) }"
-            >
-              <img :src="item.image" class="max-w-[64px]" />
-              <span
-                class="w-full text-center truncate font-Rubik font-semibold text-[#d7b7b7] text-sm"
-                >{{ item.name }}</span
-              >
-              <span class="font-Rubik text-white text-base font-semibold"
-                >${{
-                  Number(item.price).toLocaleString(undefined, {
-                    maximumFractionDigits: 2,
-                    minimumFractionDigits: 2
-                  })
-                }}</span
-              >
-            </div>
+            <p class="text-white/80 font-Rubik text-sm">Loading inventory...</p>
           </div>
+          <div
+            v-else-if="inventory.length === 0"
+            class="flex h-full min-h-[12rem] items-center justify-center px-4 py-8"
+          >
+            <p class="text-center text-[#c9a8a8] font-Rubik text-sm leading-relaxed">
+              No items in your inventory.
+            </p>
+          </div>
+          <div
+            v-else-if="filteredItems.length === 0"
+            class="flex h-full min-h-[12rem] items-center justify-center px-4 py-8"
+          >
+            <p class="text-center text-[#c9a8a8] font-Rubik text-sm leading-relaxed">
+              No items match your search.
+            </p>
+          </div>
+          <template v-else>
+            <div
+              v-if="filteredItems.length >= 24"
+              class="absolute h-10 bottom-0 z-10 w-full ml-4 max-w-[calc(100%-32px)] opacity-90 bg-[linear-gradient(180deg,rgba(83,1,1,0)_20%,#530101_100%)]"
+            ></div>
+            <div
+              class="overflow-y-auto grid w-full py-2 justify-center gap-x-1 gap-y-1 px-2 relative max-h-full"
+              style="grid-template-columns: repeat(auto-fill, 125.5px)"
+            >
+              <div
+                v-for="(item, idx) in filteredItems"
+                :key="item._id ?? item.id ?? idx"
+                @click="selectItem(item)"
+                class="w-[125.5px] h-[134px] flex flex-col items-center justify-center px-4 cursor-pointer hover:scale-[1.05] transition-transform"
+                :class="{ 'bg-[#8F0E0E]': isSelected(item), 'bg-[#690405]': !isSelected(item) }"
+              >
+                <img :src="item.image" class="max-w-[64px]" />
+                <span
+                  class="w-full text-center truncate font-Rubik font-semibold text-[#d7b7b7] text-sm"
+                  >{{ item.name }}</span
+                >
+                <span class="font-Rubik text-white text-base font-semibold"
+                  >${{
+                    Number(item.price).toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                      minimumFractionDigits: 2
+                    })
+                  }}</span
+                >
+              </div>
+            </div>
+          </template>
         </div>
         <!-- Items Selection End -->
         <!-- Footer Start -->
@@ -197,31 +221,38 @@
               {{ selectedItems.length }}/20 skins
             </div>
             <button
+              type="button"
               class="h-10 px-4 bg-[#ff3435] font-Rubik text-base font-extrabold text-white"
               @click="selectedItems.length > 0 ? (selectedItems = []) : closeModal()"
             >
               CANCEL
             </button>
             <button
+              type="button"
               class="h-10 px-4 font-Rubik text-base font-extrabold text-white bg-[#febd11]"
               @click="autoSelectItems()"
             >
               AUTO SELECT
             </button>
             <button
-              class="h-10 px-4 font-Rubik text-base font-extrabold text-white"
-              :class="{ 'bg-[#04AB53]': joinable, 'bg-[#8f0e0e]': !joinable }"
-              @click="joinable ? openModal() : ''"
+              type="button"
+              class="h-10 px-4 font-Rubik text-base font-extrabold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              :class="{ 'bg-[#04AB53]': joinable && !joining, 'bg-[#8f0e0e]': !joinable }"
+              :disabled="joining || !joinable"
+              @click.prevent="submitJoin"
             >
-              {{ joinable ? 'JOIN' : 'NEEDS:' }} {{ calculateNeed }}
-              <span class="font-Rubik text-base font-extrabold text-white opacity-70"
-                >({{
-                  Number(calculatePlayerChance).toLocaleString(undefined, {
-                    maximumFractionDigits: 2,
-                    minimumFractionDigits: 2
-                  })
-                }}%)
-              </span>
+              <template v-if="joining">JOINING...</template>
+              <template v-else>
+                {{ joinable ? 'JOIN' : 'NEEDS:' }} {{ calculateNeed }}
+                <span class="font-Rubik text-base font-extrabold text-white opacity-70"
+                  >({{
+                    Number(calculatePlayerChance).toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                      minimumFractionDigits: 2
+                    })
+                  }}%)
+                </span>
+              </template>
             </button>
           </div>
         </div>
@@ -232,8 +263,9 @@
 </template>
 <script>
 import { XMarkIcon, MagnifyingGlassIcon, ChevronDownIcon } from '@heroicons/vue/24/solid'
-
 import { openModalFromModal } from '@/modalStore'
+import { getSteamId } from '@/auth/session'
+import { joinCoinflip, loadInventory, normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
 export default {
   name: 'coinFlip_Battle',
   props: {
@@ -247,73 +279,9 @@ export default {
   },
   data() {
     return {
+      loadingInventory: false,
       searchQuery: '',
-      items: [
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 900,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 10,
-          _id: 1
-        },
-
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 40,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 30,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 1,
-          _id: 1
-        },
-        {
-          name: 'AK-47s',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 46,
-          _id: 1
-        },
-        {
-          name: 'AK-47t',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 90,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 30,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 130,
-          _id: 1
-        }
-      ],
+      inventory: [],
       sort: 'highest amount first',
       sorting: ['newest first', 'oldest first', 'highest amount first', 'lowest amount first'],
       inventory_value_times: ['30m', '1h', '2h', '4h', '6h', '12h', '1D', '2D', '3D', '1W'],
@@ -322,11 +290,35 @@ export default {
       selectedItems: [],
       openedDropdown: null,
       min: 0,
-      max: 0
-      // joinable: false
+      max: 0,
+      joining: false
     }
   },
   methods: {
+    mapInventoryItem(item, index = 0) {
+      return {
+        ...item,
+        image: normalizeSteamEconomyImageUrl(item?.image) || item?.image,
+        _id: item?._id ?? item?.id ?? item?.assetid ?? item?.asset_id ?? index
+      }
+    },
+    async fetchInventory() {
+      const steamid = getSteamId()
+      this.loadingInventory = true
+      try {
+        if (!steamid) {
+          this.inventory = []
+          return
+        }
+        const items = await loadInventory(steamid)
+        this.inventory = Array.isArray(items) ? items.map(this.mapInventoryItem) : []
+      } catch (error) {
+        console.error('Failed to load inventory:', error)
+        this.inventory = []
+      } finally {
+        this.loadingInventory = false
+      }
+    },
     formated_selected_time(duration) {
       const timeUnit = duration.slice(-1) // Extract the last character
       const timeValue = parseInt(duration.slice(0, -1)) // Extract the number
@@ -359,38 +351,50 @@ export default {
           }
       }
     },
-    // join() {
-    //   this.$emit('joinPlayer')
-    // },
-    openModal() {
-      openModalFromModal('coinflip confirmation', {
-        battle: this.battle,
-        selectedItems: this.selectedItems
-      })
-    },
-    joinBattle() {
-      let updatedBattle = this.battle
-      let player = {
-        name: 'qusai',
-        _id: 23,
-        avatar:
-          'https://image.tensorartassets.com/cdn-cgi/image/anim=false,plain=false,w=500,q=85/model_showcase/690698035015003900/63b70cf5-54fc-3411-8bab-945aadd14633.jpeg',
-        coin: this.battle.players[0].coin == 'hell' ? 'heaven' : 'hell',
-        items: this.selectedItems
+    resolveSteamOfferUrl(result) {
+      if (!result || typeof result !== 'object') return ''
+      const offerUrlCandidates = [
+        result.offerUrl,
+        result.offer_url,
+        result.offer?.url,
+        result.tradeOfferUrl,
+        result.trade_offer_url
+      ]
+      for (const value of offerUrlCandidates) {
+        const s = typeof value === 'string' ? value.trim() : ''
+        if (s && /^https?:\/\//i.test(s)) return s
       }
-
-      updatedBattle.players.push(player)
-
-      this.$store.dispatch('updateBattle', {
-        battleId: this.battle._id, // Pass the battle's unique ID
-        updatedBattle: updatedBattle // Set the new state after the coin flip
-      })
-      this.$store.dispatch('updateBattleState', {
-        battleId: this.battle._id, // Pass the battle's unique ID
-        newState: 'in_progress' // Set the new state after the coin flip
-      })
-      // this.$emit('update-battle', updatedBattle)
-      // this.$emit('playerJoinedProtocol')
+      const offerIdCandidates = [result.offerid, result.offer_id, result.offer?.id, result.tradeOfferId]
+      const offerId = offerIdCandidates.find((v) => v != null && String(v).trim())
+      if (offerId != null) {
+        return `https://steamcommunity.com/tradeoffer/${encodeURIComponent(String(offerId).trim())}/`
+      }
+      return ''
+    },
+    async submitJoin() {
+      if (!this.joinable || this.joining) return
+      const steamid = getSteamId()
+      if (!steamid) return
+      const gameid = this.resolvedBattle?._id
+      if (gameid == null || gameid === '') return
+      this.joining = true
+      try {
+        const skins = this.selectedItems.map((item) => ({
+          assetid: item.assetid ?? item.asset_id ?? item.id ?? item._id,
+          amount: Number(item.amount) > 0 ? Number(item.amount) : 1
+        }))
+        const result = await joinCoinflip({ steamid, skins, gameid })
+        const offerUrl = this.resolveSteamOfferUrl(result)
+        if (offerUrl) {
+          openModalFromModal('steam offer', { offerUrl })
+          return
+        }
+        this.closeModal()
+      } catch (error) {
+        console.error('Failed to join coinflip:', error)
+      } finally {
+        this.joining = false
+      }
     },
     toggleDropdown(dropdown) {
       if (this.openedDropdown == dropdown) {
@@ -399,9 +403,24 @@ export default {
         this.openedDropdown = dropdown
       }
     },
+    effectiveHostTotal() {
+      let total = Number(this.resolvedBattle?.total)
+      if (Number.isFinite(total) && total > 0) return total
+      const host = this.resolvedBattle?.players?.[0]
+      const items = Array.isArray(host?.items) ? host.items : []
+      const fromItems = items.reduce((s, it) => s + Number(it?.price ?? 0), 0)
+      if (fromItems > 0) return fromItems
+      const v = Number(host?.value)
+      return Number.isFinite(v) && v > 0 ? v : 0
+    },
     calculateMinMaxNeed() {
-      let total = this.battle.total
-      let percentage = (total * 10) / 100
+      const total = this.effectiveHostTotal()
+      if (!Number.isFinite(total) || total <= 0) {
+        this.min = 0
+        this.max = 0
+        return
+      }
+      const percentage = (total * 10) / 100
       this.min = total - percentage
       this.max = total + percentage
     },
@@ -436,7 +455,7 @@ export default {
       let total = 0
 
       // Sort items by price in descending order
-      const sortedItems = [...this.items].sort((a, b) => b.price - a.price)
+      const sortedItems = [...this.inventory].sort((a, b) => b.price - a.price)
 
       for (const item of sortedItems) {
         // Check if adding the current item's price stays within limits
@@ -461,17 +480,42 @@ export default {
       }
     }
   },
-  mounted() {
+  async mounted() {
+    await this.fetchInventory()
     this.calculateMinMaxNeed()
   },
-
+  watch: {
+    /** Store replaces battle objects on patch; modal props keep a stale ref unless we read from Vuex. */
+    resolvedBattle: {
+      deep: true,
+      handler(newVal, oldVal) {
+        if (oldVal != null && newVal?._id !== oldVal?._id) {
+          this.selectedItems = []
+          this.joining = false
+          void this.fetchInventory()
+        }
+        this.calculateMinMaxNeed()
+      }
+    }
+  },
   computed: {
+    resolvedBattle() {
+      const stale = this.battle
+      if (!stale || typeof stale !== 'object') return stale
+      const id = stale._id ?? stale.gameid
+      if (id == null || id === '') return stale
+      const list = this.$store.getters.getBattles
+      if (!Array.isArray(list)) return stale
+      const found = list.find((b) => String(b._id) === String(id))
+      return found || stale
+    },
     filteredItems() {
       const lowercaseQuery = this.searchQuery.toLowerCase()
 
       // Filter the items by the search query
-      let filteredItems = this.items.filter((item) => {
-        const matchesSearch = item.name.toLowerCase().includes(lowercaseQuery)
+      let filteredItems = this.inventory.filter((item) => {
+        const name = typeof item?.name === 'string' ? item.name : ''
+        const matchesSearch = name.toLowerCase().includes(lowercaseQuery)
         return matchesSearch
       })
 
@@ -489,12 +533,16 @@ export default {
     },
     totalItemsValue() {
       let value = 0
-      this.battle.players.forEach((player) => {
-        player.items.forEach((item) => {
-          value += item.price
+      const players = Array.isArray(this.resolvedBattle?.players)
+        ? this.resolvedBattle.players
+        : []
+      players.forEach((player) => {
+        const items = Array.isArray(player?.items) ? player.items : []
+        items.forEach((item) => {
+          value += Number(item?.price ?? 0)
         })
       })
-      value += this.selectedItems.reduce((itemAcc, item) => itemAcc + item.price, 0)
+      value += this.selectedItems.reduce((itemAcc, item) => itemAcc + Number(item?.price ?? 0), 0)
       return value
     },
     calculatePlayerChance() {
@@ -502,13 +550,13 @@ export default {
       let totalValue = this.totalItemsValue
 
       this.selectedItems.forEach((item) => {
-        value += item.price
+        value += Number(item?.price ?? 0)
       })
       let chance = totalValue ? (value / totalValue) * 100 : 0
       return chance
     },
     calculateNeed() {
-      let value = this.selectedItems.reduce((acc, item) => acc + item.price, 0)
+      let value = this.selectedItems.reduce((acc, item) => acc + Number(item?.price ?? 0), 0)
       let need = 0
 
       if (value < this.min) {
@@ -537,7 +585,7 @@ export default {
       }
     },
     joinable() {
-      let value = this.selectedItems.reduce((acc, item) => acc + item.price, 0)
+      let value = this.selectedItems.reduce((acc, item) => acc + Number(item?.price ?? 0), 0)
       return value >= this.min && value <= this.max
     }
   }

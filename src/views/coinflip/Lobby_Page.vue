@@ -431,6 +431,7 @@ import CoinflipRow from '../../components/coinflip/CoinflipRow.vue'
 import { mapState } from 'vuex'
 import Tournament_bracket from '@/components/coinflip/Tournament_bracket.vue'
 import { openModal } from '@/modalStore'
+import { getSharedJackpotSocket, isSocketEnabled, joinCoinflipSocketRoom } from '@/services/jackpotClient'
 export default {
   components: {
     UserIcon,
@@ -440,44 +441,15 @@ export default {
   },
   data() {
     return {
-      previousCoinflips: [
-        'hell',
-        'hell',
-        'heaven',
-        'hell',
-        'heaven',
-        'hell',
-        'hell',
-        'heaven',
-        'hell',
-        'heaven',
-        'hell',
-        'hell',
-        'heaven',
-        'hell',
-        'heaven',
-        'hell',
-        'hell',
-        'heaven',
-        'hell',
-        'hell',
-        'hell',
-        'heaven',
-        'hell',
-        'heaven',
-        'hell'
-      ],
+      previousCoinflips: [],
       toggled_dropdown: null,
       activeModal: null,
       show_personal_stats: false,
       show_previos_coinflips: true,
       show_previous_100: false,
-      screenWidth: window.innerWidth
-    }
-  },
-  watch: {
-    battles(newBattles) {
-      console.log('Updated battles:', newBattles) // Check if the battles data is reactive
+      screenWidth: window.innerWidth,
+      socket: null,
+      coinflipSocketHandlers: null
     }
   },
   computed: {
@@ -502,7 +474,8 @@ export default {
       }
     },
     filteredBattles() {
-      let battlesArray = this.battles
+      // Copy so `.sort()` / `.filter()` never mutate Vuex `state.battles` in place (breaks reactivity).
+      let battlesArray = Array.isArray(this.battles) ? [...this.battles] : []
       // Apply 'personalCoinFlips' filter
       if (this.filters.personalCoinFlips) {
         battlesArray = battlesArray.filter((battle) =>
@@ -551,8 +524,341 @@ export default {
   },
   mounted() {
     window.addEventListener('resize', this.updateScreenWidth)
+    this.connectCoinflipSocket()
   },
   methods: {
+    normalizeCoinSideValue(raw) {
+      if (raw === 1 || raw === '1') return 'heaven'
+      if (raw === 2 || raw === '2') return 'hell'
+      const s = String(raw || '')
+        .trim()
+        .toLowerCase()
+      if (s === 'heaven' || s === 'hell') return s
+      return 'heaven'
+    },
+    mapCoinflipItem(item, index = 0) {
+      if (!item || typeof item !== 'object') return null
+      return {
+        _id: item._id ?? item.id ?? item.assetid ?? item.asset_id ?? index,
+        id: item.id ?? item._id ?? index,
+        name: item.name ?? item.market_hash_name ?? 'Item',
+        image: item.image ?? item.icon_url ?? item.icon ?? '/img/user/userImage.png',
+        price: Number(item.price ?? item.value ?? item.amount ?? 0) || 0
+      }
+    },
+    mapSocketGameToBattle(game, fallbackId) {
+      if (!game || typeof game !== 'object') return null
+      const id = game.gameid ?? game.gameId ?? game.game_id ?? game.id ?? game._id ?? fallbackId
+      if (id == null || id === '') return null
+      const hostData = game.host_data || game.hostData || {}
+      const hostSkins = Array.isArray(game.host_skins)
+        ? game.host_skins
+        : Array.isArray(game.hostSkins)
+          ? game.hostSkins
+          : []
+      const hostPlayer = {
+        _id: game.host ?? hostData.steamid ?? id,
+        steamid: game.host ?? hostData.steamid ?? null,
+        name: hostData.name ?? 'Unknown',
+        avatar: hostData.avatar ?? '/img/user/userImage.png',
+        coin: this.normalizeCoinSideValue(hostData.coin),
+        chance: Number(hostData.chance ?? 50) || 50,
+        value: Number(hostData.value ?? game.total_value ?? 0) || 0,
+        items: hostSkins.map((item, idx) => this.mapCoinflipItem(item, idx)).filter(Boolean)
+      }
+      const players = [hostPlayer]
+      if (game.part_data && game.part) {
+        const partSkins = Array.isArray(game.part_skins) ? game.part_skins : []
+        players.push({
+          _id: game.part,
+          steamid: game.part,
+          name: game.part_data.name ?? 'Unknown',
+          avatar: game.part_data.avatar ?? '/img/user/userImage.png',
+          coin: this.normalizeCoinSideValue(game.part_data.coin),
+          chance: Number(game.part_data.chance ?? 50) || 50,
+          value: Number(game.part_data.value ?? 0) || 0,
+          items: partSkins.map((item, idx) => this.mapCoinflipItem(item, idx)).filter(Boolean)
+        })
+      }
+      let total = Number(game.total_value ?? game.total ?? 0) || 0
+      if (total <= 0) {
+        total = hostPlayer.items.reduce((s, it) => s + Number(it?.price ?? 0), 0)
+      }
+      return {
+        _id: Number.isFinite(Number(id)) ? Number(id) : id,
+        players,
+        total,
+        state: game.state ?? 'open',
+        joining: !!game.joining,
+        attempts: Array.isArray(game.attempts) ? game.attempts : [],
+        ...(game.createdAt != null ? { createdAt: game.createdAt } : {})
+      }
+    },
+    /** Second player from `coinflip:joined` (skins). Name/avatar/coin usually come from `joinPartData` (set on `coinflip:joining`). */
+    buildJoinerPlayerFromJoinedPayload(payload, battle) {
+      if (!battle?.players?.[0]) return null
+      const host = battle.players[0]
+      const pending = battle.joinPartData || {}
+      const fromJoining = pending.part_data || {}
+      const partData = {
+        ...fromJoining,
+        ...(payload.part_data || payload.joiner_data || payload.joiner || payload.user || {})
+      }
+      const steamid =
+        payload.part ??
+        pending.part ??
+        partData.steamid ??
+        partData.steam_id ??
+        payload.steamid ??
+        payload.joiner_steamid ??
+        payload.joiner ??
+        null
+      const skins = Array.isArray(payload.skins)
+        ? payload.skins
+        : Array.isArray(payload.part_skins)
+          ? payload.part_skins
+          : []
+      const items = skins
+        .map((item, idx) => this.mapCoinflipItem(item, idx))
+        .filter((item) => item != null)
+      const joinerValue = items.reduce((s, it) => s + Number(it?.price ?? 0), 0)
+      const hostCoin = host.coin === 'hell' ? 'hell' : 'heaven'
+      let coin
+      if (partData.coin != null) {
+        coin = this.normalizeCoinSideValue(partData.coin)
+      } else if (payload.part_coin != null) {
+        coin = this.normalizeCoinSideValue(payload.part_coin)
+      } else {
+        coin = hostCoin === 'heaven' ? 'hell' : 'heaven'
+      }
+      return {
+        _id: steamid ?? `joiner-${battle._id}`,
+        steamid,
+        name: partData.name ?? partData.personaname ?? payload.name ?? 'Player',
+        avatar:
+          partData.avatar ??
+          partData.avatarfull ??
+          payload.avatar ??
+          payload.avatarfull ??
+          '/img/user/userImage.png',
+        coin,
+        chance:
+          partData.chance != null
+            ? Number(partData.chance) || 50
+            : payload.part_chance != null
+              ? Number(payload.part_chance) || 50
+              : 50,
+        value: Number(partData.value ?? joinerValue) || joinerValue,
+        items
+      }
+    },
+    applyCoinflipSubscribePayload(payload) {
+      if (!payload || typeof payload !== 'object') return
+      const gamesSource = payload.games
+      let incomingGames = []
+      if (Array.isArray(gamesSource)) {
+        incomingGames = gamesSource
+      } else if (gamesSource && typeof gamesSource === 'object') {
+        incomingGames = Object.entries(gamesSource).map(([id, game]) => ({
+          ...(game || {}),
+          gameid: game?.gameid ?? id
+        }))
+      }
+      if (incomingGames.length) {
+        const mapped = incomingGames
+          .map((game, idx) => this.mapSocketGameToBattle(game, game?.gameid ?? idx))
+          .filter(Boolean)
+        this.$store.commit('setBattles', mapped)
+      }
+      const stats = payload.stats || {}
+      if (Array.isArray(payload.history) && payload.history.length) {
+        this.previousCoinflips = payload.history
+          .map((entry) => this.normalizeCoinSideValue(entry?.coin ?? entry?.result ?? entry))
+          .filter(Boolean)
+          .slice(0, 100)
+      } else if (stats.last != null) {
+        const lastCoin = this.normalizeCoinSideValue(stats.last)
+        this.previousCoinflips = [lastCoin, ...this.previousCoinflips].slice(0, 100)
+      }
+    },
+    connectCoinflipSocket() {
+      if (this.socket || !isSocketEnabled()) return
+      this.socket = getSharedJackpotSocket()
+      if (!this.socket) return
+      const subscribe = () => {
+        // Required so server `io.to(coinflip).emit('coinflip:hosted', …)` reaches this socket (same room name).
+        joinCoinflipSocketRoom(this.socket)
+        this.socket.emit('coinflip:subscribe', (payload) => {
+          console.log('=====subscribe=====>', payload)
+          this.applyCoinflipSubscribePayload(payload)
+        })
+      }
+      this.coinflipSocketHandlers = {
+        connect: () => subscribe(),
+        subscribe: (payload) => {
+          this.applyCoinflipSubscribePayload(payload)
+        },
+        hosted: (payload) => {
+          const game = this.mapSocketGameToBattle(payload, payload?.gameid ?? payload?.id)
+          if (!game) return
+          this.$store.commit('upsertCoinflipGame', game)
+        },
+        updateStats: (payload) => {
+          const lastCoin = this.normalizeCoinSideValue(payload?.last)
+          if (!lastCoin) return
+          this.previousCoinflips = [lastCoin, ...this.previousCoinflips].slice(0, 100)
+        },
+        joining: (payload) => {
+          const gid = payload?.gameid ?? payload?.gameId
+          if (gid == null) return
+          const battle = this.battles.find((b) => String(b._id) === String(gid))
+          const patch = { joining: true }
+          if (payload.part_data || payload.part != null) {
+            patch.joinPartData = {
+              part: payload.part,
+              part_data: payload.part_data || {}
+            }
+          }
+          if (battle?.players?.[0] && payload.host_chance != null) {
+            const nextPlayers = [...battle.players]
+            nextPlayers[0] = {
+              ...nextPlayers[0],
+              chance: Number(payload.host_chance)
+            }
+            patch.players = nextPlayers
+          }
+          this.$store.commit('patchBattleById', { battleId: gid, patch })
+        },
+        joined: (payload) => {
+          const gid = payload?.gameid ?? payload?.gameId
+          if (gid == null) return
+          const battle = this.battles.find((b) => String(b._id) === String(gid))
+          if (!battle?.players?.[0]) return
+
+          const joiner = this.buildJoinerPlayerFromJoinedPayload(payload, battle)
+          if (!joiner) return
+
+          let hostPlayer = { ...battle.players[0] }
+          if (payload.host_chance != null) {
+            hostPlayer = { ...hostPlayer, chance: Number(payload.host_chance) }
+          }
+          let joinerPlayer = { ...joiner }
+          if (payload.part_chance != null) {
+            joinerPlayer = { ...joinerPlayer, chance: Number(payload.part_chance) }
+          }
+
+          const hostItems = Array.isArray(hostPlayer.items) ? hostPlayer.items : []
+          const joinItems = Array.isArray(joinerPlayer.items) ? joinerPlayer.items : []
+          const hostSum = hostItems.reduce((s, it) => s + Number(it?.price ?? 0), 0)
+          const joinSum = joinItems.reduce((s, it) => s + Number(it?.price ?? 0), 0)
+          let total =
+            payload.total_value != null ? Number(payload.total_value) : hostSum + joinSum
+          if (!Number.isFinite(total) || total <= 0) {
+            total = hostSum + joinSum
+          }
+
+          this.$store.commit('patchBattleById', {
+            battleId: gid,
+            patch: {
+              players: [hostPlayer, joinerPlayer],
+              total,
+              state: 'in_progress',
+              joining: false,
+              joinPartData: null
+            }
+          })
+        },
+        cancelJoining: (payload) => {
+          const gid = payload?.gameid ?? payload?.gameId
+          if (gid == null) return
+          this.$store.commit('patchBattleById', {
+            battleId: gid,
+            patch: { joining: false, joinPartData: null }
+          })
+        },
+        eosBlock: (payload) => {
+          const gid = payload?.gameid ?? payload?.gameId
+          if (gid == null || payload?.block == null) return
+          const battle = this.battles.find((b) => String(b._id) === String(gid))
+          const prev =
+            battle?.fairness && typeof battle.fairness === 'object' ? { ...battle.fairness } : {}
+          this.$store.commit('patchBattleById', {
+            battleId: gid,
+            patch: {
+              fairness: {
+                ...prev,
+                block: payload.block
+              }
+            }
+          })
+        },
+        flip: (payload) => {
+          const gid = payload?.gameid ?? payload?.gameId
+          if (gid == null) return
+          const battle = this.battles.find((b) => String(b._id) === String(gid))
+          if (!battle?.players?.length) return
+
+          const wSteam = payload.winner?.steamid
+          const nextPlayers = battle.players.map((p) => {
+            const won = wSteam != null && String(p.steamid) === String(wSteam)
+            if (!won) return { ...p, win: false }
+            const w = payload.winner || {}
+            return {
+              ...p,
+              win: true,
+              name: w.name ?? p.name,
+              avatar: w.avatar ?? p.avatar,
+              chance: w.chance != null ? Number(w.chance) || p.chance : p.chance,
+              value: w.value != null ? Number(w.value) : p.value
+            }
+          })
+
+          const fairness = {
+            ticket: payload.ticket,
+            hash: payload.hash,
+            block: payload.block
+          }
+
+          this.$store.commit('patchBattleById', {
+            battleId: gid,
+            patch: {
+              players: nextPlayers,
+              state: 'finished',
+              fairness
+            }
+          })
+        }
+      }
+      this.socket.on('connect', this.coinflipSocketHandlers.connect)
+      this.socket.on('coinflip:subscribe', this.coinflipSocketHandlers.subscribe)
+      this.socket.on('coinflip:hosted', this.coinflipSocketHandlers.hosted)
+      this.socket.on('coinflip:updateStats', this.coinflipSocketHandlers.updateStats)
+      this.socket.on('coinflip:joining', this.coinflipSocketHandlers.joining)
+      this.socket.on('coinflip:joined', this.coinflipSocketHandlers.joined)
+      this.socket.on('coinflip:flip', this.coinflipSocketHandlers.flip)
+      this.socket.on('fairness:eosBlock', this.coinflipSocketHandlers.eosBlock)
+      this.socket.on('fairness:EOSBlock', this.coinflipSocketHandlers.eosBlock)
+      this.socket.on('coinflip:cancelJoining', this.coinflipSocketHandlers.cancelJoining)
+      if (this.socket.connected) subscribe()
+    },
+    disconnectCoinflipSocket() {
+      if (!this.socket) return
+      this.socket.emit('coinflip:unsubscribe')
+      if (this.coinflipSocketHandlers) {
+        this.socket.off('connect', this.coinflipSocketHandlers.connect)
+        this.socket.off('coinflip:subscribe', this.coinflipSocketHandlers.subscribe)
+        this.socket.off('coinflip:hosted', this.coinflipSocketHandlers.hosted)
+        this.socket.off('coinflip:updateStats', this.coinflipSocketHandlers.updateStats)
+        this.socket.off('coinflip:joining', this.coinflipSocketHandlers.joining)
+        this.socket.off('coinflip:joined', this.coinflipSocketHandlers.joined)
+        this.socket.off('coinflip:flip', this.coinflipSocketHandlers.flip)
+        this.socket.off('fairness:eosBlock', this.coinflipSocketHandlers.eosBlock)
+        this.socket.off('fairness:EOSBlock', this.coinflipSocketHandlers.eosBlock)
+        this.socket.off('coinflip:cancelJoining', this.coinflipSocketHandlers.cancelJoining)
+      }
+      this.coinflipSocketHandlers = null
+      this.socket = null
+    },
     updateScreenWidth() {
       this.screenWidth = window.innerWidth
     },
@@ -573,6 +879,7 @@ export default {
     }
   },
   beforeUnmount() {
+    this.disconnectCoinflipSocket()
     window.removeEventListener('resize', this.updateScreenWidth)
   }
 }

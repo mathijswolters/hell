@@ -196,56 +196,80 @@
         <!-- Items Selection Start -->
         <div class="h-[15rem] lg:h-[21.4375rem] w-full relative">
           <div
-            v-if="filteredItems.length >= 24"
-            class="absolute h-10 bottom-0 z-10 w-full ml-4 max-w-[calc(100%-32px)] opacity-90 bg-[linear-gradient(180deg,rgba(83,1,1,0)_20%,#530101_100%)]"
-          ></div>
-          <div
-            class="overflow-y-auto grid w-full py-2 justify-center gap-x-2 gap-y-1 px-2 relative max-h-full"
-            style="grid-template-columns: repeat(auto-fill, 125.5px)"
+            v-if="loadingInventory"
+            class="absolute inset-0 z-20 flex items-center justify-center bg-[rgba(0,0,0,0.25)]"
           >
-            <div
-              v-for="item in filteredItems"
-              :key="item._id"
-              @click="item.banned ? '' : selectItem(item)"
-              class="w-[125.5px] h-[134px] flex flex-col items-center justify-center px-4"
-              :class="{
-                'bg-[#8F0E0E] cursor-pointer hover:scale-[1.05] transition-transform':
-                  isSelected(item) && !item.banned,
-                'bg-[#690405] cursor-pointer hover:scale-[1.05] transition-transform':
-                  !isSelected(item) && !item.banned,
-                'select-none cursor-not-allowed bg-[#2F0101]': item.banned
-              }"
-            >
-              <div class="relative w-[76px] h-[75px] flex items-center justify-center">
-                <img
-                  v-if="item.banned"
-                  class="absolute min-w-[76px] w-[76px] min-h-[75px] h-[75px] z-10"
-                  src="../../assets/icons/ban.png"
-                />
-                <img
-                  :src="item.image"
-                  class="max-w-[64px]"
-                  :class="{ 'opacity-50': item.banned }"
-                />
-              </div>
-
-              <span
-                class="w-full truncate text-center font-Rubik font-semibold text-[#d7b7b7] text-sm"
-                :class="{ 'opacity-50': item.banned }"
-                >{{ item.name }}</span
-              >
-              <span
-                class="font-Rubik text-white text-base font-semibold"
-                :class="{ 'opacity-50': item.banned }"
-                >${{
-                  Number(item.price).toLocaleString(undefined, {
-                    maximumFractionDigits: 2,
-                    minimumFractionDigits: 2
-                  })
-                }}</span
-              >
-            </div>
+            <p class="text-white/80 font-Rubik text-sm">Loading inventory...</p>
           </div>
+          <div
+            v-else-if="inventory.length === 0"
+            class="flex h-full min-h-[12rem] items-center justify-center px-4 py-8"
+          >
+            <p class="text-center text-[#c9a8a8] font-Rubik text-sm leading-relaxed">
+              No items in your inventory.
+            </p>
+          </div>
+          <div
+            v-else-if="filteredItems.length === 0"
+            class="flex h-full min-h-[12rem] items-center justify-center px-4 py-8"
+          >
+            <p class="text-center text-[#c9a8a8] font-Rubik text-sm leading-relaxed">
+              No items match your search.
+            </p>
+          </div>
+          <template v-else>
+            <div
+              v-if="filteredItems.length >= 24"
+              class="absolute h-10 bottom-0 z-10 w-full ml-4 max-w-[calc(100%-32px)] opacity-90 bg-[linear-gradient(180deg,rgba(83,1,1,0)_20%,#530101_100%)]"
+            ></div>
+            <div
+              class="overflow-y-auto grid w-full py-2 justify-center gap-x-2 gap-y-1 px-2 relative max-h-full"
+              style="grid-template-columns: repeat(auto-fill, 125.5px)"
+            >
+              <div
+                v-for="(item, idx) in filteredItems"
+                :key="item._id ?? item.id ?? idx"
+                @click="item.banned ? '' : selectItem(item)"
+                class="w-[125.5px] h-[134px] flex flex-col items-center justify-center px-4"
+                :class="{
+                  'bg-[#8F0E0E] cursor-pointer hover:scale-[1.05] transition-transform':
+                    isSelected(item) && !item.banned,
+                  'bg-[#690405] cursor-pointer hover:scale-[1.05] transition-transform':
+                    !isSelected(item) && !item.banned,
+                  'select-none cursor-not-allowed bg-[#2F0101]': item.banned
+                }"
+              >
+                <div class="relative w-[76px] h-[75px] flex items-center justify-center">
+                  <img
+                    v-if="item.banned"
+                    class="absolute min-w-[76px] w-[76px] min-h-[75px] h-[75px] z-10"
+                    src="../../assets/icons/ban.png"
+                  />
+                  <img
+                    :src="item.image"
+                    class="max-w-[64px]"
+                    :class="{ 'opacity-50': item.banned }"
+                  />
+                </div>
+
+                <span
+                  class="w-full truncate text-center font-Rubik font-semibold text-[#d7b7b7] text-sm"
+                  :class="{ 'opacity-50': item.banned }"
+                  >{{ item.name }}</span
+                >
+                <span
+                  class="font-Rubik text-white text-base font-semibold"
+                  :class="{ 'opacity-50': item.banned }"
+                  >${{
+                    Number(item.price).toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                      minimumFractionDigits: 2
+                    })
+                  }}</span
+                >
+              </div>
+            </div>
+          </template>
         </div>
         <!-- Items Selection End -->
       </div>
@@ -259,10 +283,11 @@
           CANCEL
         </button>
         <button
-          class="h-10 px-4 bg-[#04AB53] font-Rubik text-base font-[600] text-white min-w-40 flex items-center justify-between gap-4"
-          @click="selectedItems.length > 0 ? (selectedItems = []) : closeModal()"
+          class="h-10 px-4 bg-[#04AB53] font-Rubik text-base font-[600] text-white min-w-40 flex items-center justify-between gap-4 disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="!canCreate || creating"
+          @click="createCoinflip"
         >
-          CREATE
+          {{ creating ? 'CREATING...' : 'CREATE' }}
           <span class="font-Rubik text-base font-[700] text-white"
             >${{
               Number(totalPrice).toLocaleString(undefined, {
@@ -280,6 +305,15 @@
 
 <script>
 import { XMarkIcon, MagnifyingGlassIcon, ChevronDownIcon } from '@heroicons/vue/24/solid'
+import { getAuth, getSteamId } from '@/auth/session'
+import {
+  hostCoinflip,
+  getCoinflips,
+  loadInventory,
+  normalizeSteamEconomyImageUrl
+} from '@/services/jackpotClient'
+import { openModalFromModal } from '@/modalStore'
+import { store } from '@/store'
 export default {
   props: {
     initialCoin: {
@@ -297,73 +331,9 @@ export default {
   },
   data() {
     return {
-      inventory: [
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 900,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 10,
-          _id: 1
-        },
-
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 40,
-          _id: 1,
-          banned: true
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 30,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 1,
-          _id: 1
-        },
-        {
-          name: 'AK-47s',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 46,
-          _id: 1
-        },
-        {
-          name: 'AK-47t',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 90,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 30,
-          _id: 1
-        },
-        {
-          name: 'AK-47',
-          image:
-            'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-          price: 130,
-          _id: 1
-        }
-      ],
+      loadingInventory: false,
+      creating: false,
+      inventory: [],
       sort: 'highest amount first',
       sorting: ['newest first', 'oldest first', 'highest amount first', 'lowest amount first'],
       inventory_value_times: ['30m', '1h', '2h', '4h', '6h', '12h', '1D', '2D', '3D', '1W'],
@@ -376,6 +346,86 @@ export default {
     }
   },
   methods: {
+    mapInventoryItem(item, index = 0) {
+      return {
+        ...item,
+        image: normalizeSteamEconomyImageUrl(item?.image) || item?.image,
+        _id: item?._id ?? item?.id ?? item?.assetid ?? item?.asset_id ?? index
+      }
+    },
+    async fetchInventory() {
+      // const steamid = '76561197984485194'
+      const steamid = getSteamId()
+      this.loadingInventory = true
+      try {
+        if (!steamid) {
+          this.inventory = []
+          return
+        }
+        const items = await loadInventory(steamid)
+        this.inventory = Array.isArray(items) ? items.map(this.mapInventoryItem) : []
+      } catch (error) {
+        console.error('Failed to load inventory:', error)
+        this.inventory = []
+      } finally {
+        this.loadingInventory = false
+      }
+    },
+    resolveSteamOfferUrl(result) {
+      if (!result || typeof result !== 'object') return ''
+      const offerUrlCandidates = [
+        result.offerUrl,
+        result.offer_url,
+        result.offer?.url,
+        result.tradeOfferUrl,
+        result.trade_offer_url
+      ]
+      for (const value of offerUrlCandidates) {
+        const s = typeof value === 'string' ? value.trim() : ''
+        if (s && /^https?:\/\//i.test(s)) return s
+      }
+      const offerIdCandidates = [result.offerid, result.offer_id, result.offer?.id, result.tradeOfferId]
+      const offerId = offerIdCandidates.find((v) => v != null && String(v).trim())
+      if (offerId != null) {
+        return `https://steamcommunity.com/tradeoffer/${encodeURIComponent(String(offerId).trim())}/`
+      }
+      return ''
+    },
+    selectedCoinToApiValue() {
+      if (this.selectedCoin === 'random') return 0
+      if (this.selectedCoin === 'heaven') return 1
+      if (this.selectedCoin === 'hell') return 2
+      return 0
+    },
+    async createCoinflip() {
+      if (!this.canCreate || this.creating) return
+      const steamid = getSteamId()
+      if (!steamid) {
+        this.$toaster?.error?.('Please login first.')
+        return
+      }
+      this.creating = true
+      try {
+        const skins = this.selectedItems.map((item) => ({
+          assetid: item.assetid ?? item.asset_id ?? item.id ?? item._id,
+          amount: Number(item.amount) > 0 ? Number(item.amount) : 1
+        }))
+        const choice = this.selectedCoinToApiValue()
+        const result = await hostCoinflip({ steamid, skins, choice })
+
+        const offerUrl = this.resolveSteamOfferUrl(result)
+        if (offerUrl) {
+          openModalFromModal('steam offer', { offerUrl })
+          return
+        }
+        this.closeModal()
+      } catch (error) {
+        this.$toaster?.error?.(error?.message || 'Could not create coinflip game.')
+        console.error('Failed to host coinflip:', error)
+      } finally {
+        this.creating = false
+      }
+    },
     formated_selected_time(duration) {
       const timeUnit = duration.slice(-1) // Extract the last character
       const timeValue = parseInt(duration.slice(0, -1)) // Extract the number
@@ -421,6 +471,12 @@ export default {
       for (const battleItem of this.initialSelectedItems) {
         const inv = this.inventory.find(
           (i) =>
+            (battleItem.assetid != null &&
+              (String(i.assetid) === String(battleItem.assetid) ||
+                String(i.asset_id) === String(battleItem.assetid))) ||
+            (battleItem.asset_id != null &&
+              (String(i.assetid) === String(battleItem.asset_id) ||
+                String(i.asset_id) === String(battleItem.asset_id))) ||
             (battleItem._id != null && i._id === battleItem._id) ||
             (battleItem.image && i.image === battleItem.image) ||
             (i.name === battleItem.name && Number(i.price) === Number(battleItem.price))
@@ -447,7 +503,8 @@ export default {
       return this.selectedItems.includes(item)
     }
   },
-  mounted() {
+  async mounted() {
+    await this.fetchInventory()
     this.applyInitialDoubleDown()
   },
   components: {
@@ -456,12 +513,16 @@ export default {
     ChevronDownIcon
   },
   computed: {
+    canCreate() {
+      return !!this.selectedCoin && this.selectedItems.length > 0
+    },
     filteredItems() {
       const lowercaseQuery = this.searchQuery.toLowerCase()
 
       // Filter the items by the search query
       let filteredItems = this.inventory.filter((item) => {
-        const matchesSearch = item.name.toLowerCase().includes(lowercaseQuery)
+        const name = typeof item?.name === 'string' ? item.name : ''
+        const matchesSearch = name.toLowerCase().includes(lowercaseQuery)
         return matchesSearch
       })
 
@@ -478,7 +539,7 @@ export default {
       return filteredItems
     },
     totalPrice() {
-      return this.selectedItems.reduce((itemAcc, item) => itemAcc + item.price, 0)
+      return this.selectedItems.reduce((itemAcc, item) => itemAcc + Number(item.price || 0), 0)
     }
   }
 }

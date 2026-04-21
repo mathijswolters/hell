@@ -182,10 +182,11 @@
           >
             <CircleProgressBar
               v-if="
-                battle.state == 'created' || (battle.state == 'in_progress' && localSecondsLeft > 0)
+                isLobbyCountdownVisible ||
+                (battle.state == 'in_progress' && localSecondsLeft > 0)
               "
               :value="localSecondsLeft"
-              :max="battle.state == 'created' ? 30 : 10"
+              :max="countdownMax"
               :size="screenWidth < 640 ? '90' : '148'"
               :colorUnfilled="battle.state == 'in_progress' ? '#04AB53' : '#FF3435'"
               :colorBack="battle.state == 'in_progress' ? 'rgb(4, 171, 83,0.2)' : '#FF343533'"
@@ -226,21 +227,26 @@
                     'text-[#FF4444]': winner.coin === 'hell'
                   }"
                 >
-                  Ticket: 42.4241040214012
+                  Ticket: {{ formatFairnessTicket(flipFairness.ticket) }}
                 </span>
               </transition>
-              <span class="font-Rubik font-medium text-sm text-[#d7b7b7]">
-                Hash: 620b2295fd8aef1313fa3f
+              <span
+                v-if="battle.state === 'finished'"
+                class="font-Rubik font-medium text-xs sm:text-sm text-[#d7b7b7] font-mono break-all max-w-full"
+                :title="
+                  flipFairness.hash && String(flipFairness.hash).length > 28
+                    ? flipFairness.hash
+                    : undefined
+                "
+              >
+                Hash: {{ formatFairnessLong(flipFairness.hash) }}
               </span>
-              <transition name="fade-slide">
-                <span
-                  v-if="battle.state === 'finished'"
-                  class="font-Rubik font-medium text-sm text-[#d7b7b7]"
-                >
-                  Secret: 620b2295fd8aef1313fa3f
-                </span>
-              </transition>
-              <span class="font-Rubik font-semibold text-sm text-[#d7b7b7]"> EOS: #42510 </span>
+              <span
+                v-if="fairnessBlockVisible"
+                class="font-Rubik font-semibold text-sm text-[#d7b7b7]"
+              >
+                Block: {{ formatFairnessBlock(flipFairness.block) }}
+              </span>
             </span>
           </div>
         </div>
@@ -288,7 +294,7 @@
                   :key="item._id"
                   class="w-[92px] sm:w-[130px] bg-[#690405] py-2 sm:py-0 sm:h-[134px] flex flex-col items-center justify-center px-4"
                 >
-                  <img :src="item.image" class="max-w-[64px]" />
+                  <img :src="itemSkinImageSrc(item)" class="max-w-[64px]" />
                   <span
                     class="w-full text-center truncate font-Rubik font-semibold text-[#d7b7b7] text-sm sm:text-base"
                     >{{ item.name }}</span
@@ -339,17 +345,21 @@
               'text-[#93C8FB]': winner.coin == 'heaven',
               'text-[#FF4444]': winner.coin == 'hell'
             }"
-            >Ticket: 42.4241040214012</span
-          >
-          <span class="font-Rubik font-medium text-sm text-[#d7b7b7]"
-            >Hash: 620b2295fd8aef1313fa3f</span
+            >Ticket: {{ formatFairnessTicket(flipFairness.ticket) }}</span
           >
           <span
             v-if="battle.state == 'finished'"
-            class="font-Rubik font-medium text-sm text-[#d7b7b7]"
-            >Secret: 620b2295fd8aef1313fa3f</span
+            class="font-Rubik font-medium text-sm text-[#d7b7b7] font-mono break-all max-w-full px-1"
+            :title="
+              flipFairness.hash && String(flipFairness.hash).length > 28 ? flipFairness.hash : undefined
+            "
+            >Hash: {{ formatFairnessLong(flipFairness.hash) }}</span
           >
-          <span class="font-Rubik font-semimediumbold text-sm text-[#d7b7b7]">EOS: #42510</span>
+          <span
+            v-if="fairnessBlockVisible"
+            class="font-Rubik font-medium text-sm text-[#d7b7b7]"
+            >Block: {{ formatFairnessBlock(flipFairness.block) }}</span
+          >
         </span>
       </div>
     </div>
@@ -363,6 +373,7 @@ import { mapActions } from 'vuex'
 import { authVersion, getAuth, isLoggedIn } from '@/auth/session'
 import { openModalFromModal } from '@/modalStore'
 import { startSteamOAuth } from '@/auth/steamLogin'
+import { normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
 export default {
   name: 'coinFlip_Battle',
   props: {
@@ -374,7 +385,7 @@ export default {
     secondsLeft: {
       type: Number,
       required: false,
-      default: 10
+      default: undefined
     }
   },
   components: { XMarkIcon, CircleProgressBar },
@@ -386,18 +397,31 @@ export default {
       amountBlueAmount: 0,
       isFlipping: false,
       confetti: null,
-      localSecondsLeft: this.secondsLeft,
+      localSecondsLeft: 0,
       countdownInterval: null,
       screenWidth: window.innerWidth,
       winnerModalOpened: false
     }
   },
   watch: {
+    battle: {
+      deep: true,
+      handler(newB, oldB) {
+        const hadOne = (oldB?.players?.length ?? 0) < 2
+        const hasTwo = (newB?.players?.length ?? 0) >= 2
+        if (hasTwo && hadOne && newB.state === 'in_progress') {
+          this.startCountdown(10)
+        }
+      }
+    },
     localSecondsLeft(newState) {
-      if (this.battle.state === 'created' && newState == 0) {
+      if (
+        (this.battle.state === 'created' || this.battle.state === 'open') &&
+        newState === 0
+      ) {
         setTimeout(() => {
           if (this.isFlipping == false) {
-            // this.removeBattle(this.battle._id)
+            // Lobby timer expired without a join
           }
         }, 1000)
       }
@@ -444,6 +468,36 @@ export default {
       this.closeModal()
       startSteamOAuth(this.$route.fullPath)
     },
+    itemSkinImageSrc(item) {
+      const raw = item?.image ?? ''
+      const normalized = normalizeSteamEconomyImageUrl(raw)
+      if (normalized) return normalized
+      if (raw && String(raw).includes('/')) return raw
+      return raw ? `https://community.akamai.steamstatic.com/economy/image/${raw}` : ''
+    },
+    formatFairnessTicket(raw) {
+      const s = raw == null ? '' : String(raw).trim()
+      if (!s) return '—'
+      const n = Number(s.replace(/[^\d.-]/g, ''))
+      if (Number.isFinite(n)) {
+        return n.toLocaleString(undefined, {
+          maximumFractionDigits: 14,
+          minimumFractionDigits: 0
+        })
+      }
+      return s
+    },
+    formatFairnessLong(raw) {
+      const s = raw == null ? '' : String(raw).trim()
+      if (!s) return '—'
+      if (s.length <= 28) return s
+      return `${s.slice(0, 14)}…${s.slice(-12)}`
+    },
+    formatFairnessBlock(raw) {
+      if (raw == null || String(raw).trim() === '') return '—'
+      const t = String(raw).trim()
+      return t.startsWith('#') ? t : `#${t}`
+    },
     join() {
       this.$emit('joinPlayer')
     },
@@ -465,29 +519,15 @@ export default {
     calculateTotalItemsValue(items) {
       let value = 0
       let totalValue = this.totalItemsValue
-
-      items.forEach((item) => {
-        value += item.price
+      const list = Array.isArray(items) ? items : []
+      list.forEach((item) => {
+        value += Number(item?.price ?? 0)
       })
       let chance = totalValue ? (value / totalValue) * 100 : 0
       return { value, chance }
     },
     flipCoin() {
       if (this.isFlipping) return
-      let updatedBattle = { ...this.battle }
-      updatedBattle.state = 'in-progress'
-      this.updateBattle({ battleIndex: this.battle.id, updatedBattle })
-      this.updateBattleState({ battleIndex: this.battle.id, newState: updatedBattle.state })
-      this.updatePlayerResult({
-        battleIndex: this.battle.id,
-        playerIndex: 0,
-        result: updatedBattle.players[0].result
-      })
-      this.updatePlayerResult({
-        battleIndex: this.battle.id,
-        playerIndex: 1,
-        result: updatedBattle.players[1].result
-      })
       const playerChances = this.battle.players.map((player) =>
         this.calculateTotalItemsValue(player.items)
       )
@@ -598,22 +638,68 @@ export default {
       }, 1000)
     },
     handleCountdownEnd() {
-      if (this.battle.state === 'created') {
-        console.log('Countdown ended: battle created state expired.')
-      } else if (this.battle.state === 'in_progress' && this.localSecondsLeft == 0) {
+      if (this.battle.state === 'created' || this.battle.state === 'open') {
+        return
+      }
+      if (this.battle.state === 'in_progress' && this.localSecondsLeft === 0) {
         setTimeout(() => {
           this.flipCoin()
         }, 500)
       }
+    },
+    resolveInitialCountdown() {
+      if (this.battle.state === 'finished') {
+        return Math.max(0, Number(this.secondsLeft) || 0)
+      }
+      const two = (this.battle.players?.length ?? 0) >= 2
+      const raw = this.secondsLeft
+      const hasExplicit = raw != null && Number.isFinite(Number(raw)) && Number(raw) >= 0
+      const s = hasExplicit ? Number(raw) : null
+
+      if (!two && (this.battle.state === 'open' || this.battle.state === 'created')) {
+        if (s != null && s > 0) return s
+        return 30
+      }
+      if (two && this.battle.state === 'in_progress') {
+        if (s != null) return s
+        return 10
+      }
+      if (s != null) return s
+      return 10
+    },
+    shouldRunFlipImmediately() {
+      const raw = this.secondsLeft
+      const explicitZero =
+        raw != null && Number.isFinite(Number(raw)) && Number(raw) === 0
+      return (
+        explicitZero &&
+        this.battle.state === 'in_progress' &&
+        (this.battle.players?.length ?? 0) >= 2
+      )
     },
     updateScreenWidth() {
       this.screenWidth = window.innerWidth
     }
   },
   computed: {
+    isLobbyCountdownVisible() {
+      const lobby =
+        this.battle.state === 'created' ||
+        this.battle.state === 'open'
+      return lobby && (this.battle.players?.length ?? 0) < 2 && this.localSecondsLeft > 0
+    },
+    countdownMax() {
+      const lobby =
+        this.battle.state === 'created' ||
+        this.battle.state === 'open'
+      if (lobby && (this.battle.players?.length ?? 0) < 2) return 30
+      if (this.battle.state === 'in_progress') return 10
+      return 30
+    },
     totalItemsValue() {
       return this.battle.players.reduce((playerAcc, player) => {
-        const playerTotal = player.items.reduce((itemAcc, item) => itemAcc + item.price, 0)
+        const items = Array.isArray(player?.items) ? player.items : []
+        const playerTotal = items.reduce((itemAcc, item) => itemAcc + Number(item?.price ?? 0), 0)
         return playerAcc + playerTotal
       }, 0)
     },
@@ -632,10 +718,35 @@ export default {
     signedIn() {
       authVersion.value
       return isLoggedIn()
+    },
+    /** Provably fair fields from `coinflip:flip` / `fairness:eosBlock` (stored on `battle.fairness`). */
+    flipFairness() {
+      const f = this.battle.fairness
+      return f && typeof f === 'object' ? f : { ticket: null, hash: null, block: null }
+    },
+    /**
+     * Block only during in_progress (pre-flip timer + coin animation). After flip, ticket+hash+block when finished.
+     */
+    fairnessBlockVisible() {
+      const block = this.flipFairness.block
+      if (block === null || block === undefined) return false
+      if (String(block).trim() === '') return false
+      if (this.battle.state === 'finished') return true
+      if (this.battle.state !== 'in_progress') return false
+      if ((this.battle.players?.length ?? 0) < 2) return false
+      return true
     }
   },
   mounted() {
-    this.startCountdown(this.secondsLeft)
+    const initial = this.resolveInitialCountdown()
+    this.localSecondsLeft = initial
+    if (this.shouldRunFlipImmediately()) {
+      this.$nextTick(() => this.handleCountdownEnd())
+    } else if (initial > 0) {
+      this.startCountdown(initial)
+    } else {
+      this.handleCountdownEnd()
+    }
     window.addEventListener('resize', this.updateScreenWidth)
   },
   beforeUnmount() {

@@ -388,6 +388,22 @@ export function createJackpotSocket() {
   return getSharedJackpotSocket()
 }
 
+/**
+ * Socket.IO room name — must match `io.to(<name>)` on the server (same value as your `coinflip` variable).
+ * If the server uses e.g. `io.to('coinflip-lobby')`, set `VITE_COINFLIP_IO_ROOM=coinflip-lobby`.
+ */
+export const COINFLIP_IO_ROOM = (import.meta.env.VITE_COINFLIP_IO_ROOM || 'coinflip').trim()
+
+/**
+ * Join the room that receives `coinflip:hosted`. Without `socket.join` on the server for this room,
+ * `io.to(coinflip).emit('coinflip:hosted', …)` will not reach this client.
+ * Server should do: `socket.on('join', (room) => socket.join(room))` or `socket.join(COINFLIP_IO_ROOM)` inside `coinflip:subscribe`.
+ */
+export function joinCoinflipSocketRoom(socket) {
+  if (!socket?.connected || !COINFLIP_IO_ROOM) return
+  socket.emit('join', COINFLIP_IO_ROOM)
+}
+
 export async function getRound({ potid = 1, history = true, lucky = true } = {}) {
   const data = await request(
     `/jackpot/getRound?potid=${potid}&history=${history}&lucky=${lucky}`
@@ -452,6 +468,90 @@ export async function depositToJackpot({ steamid, skins }) {
   } finally {
     clearTimeout(t)
   }
+}
+
+/**
+ * Create/host a new coinflip game.
+ * POST `/coinflip/host`
+ */
+export async function hostCoinflip({ steamid, skins, choice }) {
+  const body = { steamid, skins }
+  if (choice != null) body.choice = choice
+  const data = await request('/coinflip/host', {
+    method: 'POST',
+    body: JSON.stringify(body)
+  })
+  if (data?.error === true) {
+    throw new Error(data?.error_message || 'Could not create coinflip game')
+  }
+  return data
+}
+
+export async function getCoinflips() {
+  const data = await request('/coinflip/getCoinflips', {
+    method: 'GET',
+  })
+  if (data?.error === true) {
+    throw new Error(data?.error_message || 'Could not get coinflips')
+  }
+  return data
+}
+
+/**
+ * Join an existing coinflip game.
+ * POST `/coinflip/join`
+ */
+export async function joinCoinflip({ steamid, skins, gameid }) {
+  const controller = new AbortController()
+  const t = setTimeout(() => controller.abort(), 60000)
+  try {
+    const data = await request('/coinflip/join', {
+      method: 'POST',
+      body: JSON.stringify({ steamid, skins, gameid }),
+      signal: controller.signal
+    })
+    if (data?.error === true) {
+      throw new Error(data?.error_message || 'Could not join coinflip game')
+    }
+    return data
+  } catch (e) {
+    if (e?.name === 'AbortError') {
+      throw new Error('Join timed out — try again or check your connection.')
+    }
+    throw e
+  } finally {
+    clearTimeout(t)
+  }
+}
+
+/**
+ * Winner claims jackpot payout directly.
+ * POST `/jackpot/claimWinnings`
+ */
+export async function claimJackpotWinnings({ steamid, gameid, potid }) {
+  const data = await request('/jackpot/claimWinnings', {
+    method: 'POST',
+    body: JSON.stringify({ steamid, gameid, potid })
+  })
+  if (data?.error === true) {
+    throw new Error(data?.error_message || 'Could not claim winnings')
+  }
+  return data
+}
+
+/**
+ * Winner wagers jackpot payout into next round.
+ * POST `/jackpot/wagerWinnings`
+ */
+export async function wagerJackpotWinnings({ steamid, gameid, potid }) {
+  const data = await request('/jackpot/wagerWinnings', {
+    method: 'POST',
+    body: JSON.stringify({ steamid, gameid, potid })
+  })
+  if (data?.error === true) {
+    throw new Error(data?.error_message || 'Could not wager winnings')
+  }
+  return data
 }
 
 /**

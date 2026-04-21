@@ -8,8 +8,8 @@ export default {
 
     document.body.appendChild(toasterInstance.$el)
 
-    // Add toaster methods
-    app.config.globalProperties.toaster = {
+    // Add toaster methods (`toaster` and `$toaster` — many components use `$toaster` from habit)
+    const api = {
       success(message, options) {
         toasterInstance.addToast('success', message, options)
       },
@@ -20,5 +20,7 @@ export default {
         toasterInstance.addToast('warning', message, options)
       }
     }
+    app.config.globalProperties.toaster = api
+    app.config.globalProperties.$toaster = api
   }
 }

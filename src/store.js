@@ -3,396 +3,397 @@ import { createStore } from 'vuex'
 
 export const store = createStore({
   state: {
-    battles: [
-      {
-        _id: 1,
-        players: [
-          {
-            name: 'tester heaven',
-            avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
-            coin: 'heaven',
-            items: [
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 1,
-                id: 1
-              },
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 100,
-                id: 2
-              },
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 20,
-                id: 3
-              },
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 56,
-                id: 4
-              },
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 900,
-                id: 5
-              }
-            ]
-          }
-        ],
+    battles: [],
+    // battles: [
+    //   {
+    //     _id: 1,
+    //     players: [
+    //       {
+    //         name: 'tester heaven',
+    //         avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+    //         coin: 'heaven',
+    //         items: [
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 1,
+    //             id: 1
+    //           },
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 100,
+    //             id: 2
+    //           },
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 20,
+    //             id: 3
+    //           },
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 56,
+    //             id: 4
+    //           },
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 900,
+    //             id: 5
+    //           }
+    //         ]
+    //       }
+    //     ],
 
-        total: 1077,
-        state: 'created'
-      },
-      {
-        _id: 2,
-        double_down: [
-          {
-            _id: 5,
-            players: [
-              {
-                name: 'tester hell',
-                avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
-                coin: 'heaven',
-                win: true,
-                items: [
-                  {
-                    name: 'AK-47',
-                    image:
-                      'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                    price: 100,
-                    id: 1
-                  },
-                  {
-                    name: 'AK-47',
-                    image:
-                      'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                    price: 100,
-                    id: 1
-                  },
-                  {
-                    name: 'AK-47',
-                    image:
-                      'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                    price: 100,
-                    id: 1
-                  },
-                  {
-                    name: 'AK-47',
-                    image:
-                      'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                    price: 100,
-                    id: 1
-                  },
-                  {
-                    name: 'AK-47',
-                    image:
-                      'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                    price: 100,
-                    id: 1
-                  },
-                  {
-                    name: 'AK-47',
-                    image:
-                      'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                    price: 100,
-                    id: 1
-                  },
-                  {
-                    name: 'AK-47',
-                    image:
-                      'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                    price: 24,
-                    id: 1
-                  }
-                ]
-              },
-              {
-                name: 'tester heaven',
-                avatar: 'https://images3.alphacoders.com/132/1320540.png',
-                coin: 'hell',
-                win: false,
-                items: [
-                  {
-                    name: 'AK-47 testing name length',
-                    image:
-                      'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                    price: 100,
-                    id: 1
-                  }
-                ]
-              }
-            ],
+    //     total: 1077,
+    //     state: 'created'
+    //   },
+    //   {
+    //     _id: 2,
+    //     double_down: [
+    //       {
+    //         _id: 5,
+    //         players: [
+    //           {
+    //             name: 'tester hell',
+    //             avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+    //             coin: 'heaven',
+    //             win: true,
+    //             items: [
+    //               {
+    //                 name: 'AK-47',
+    //                 image:
+    //                   'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //                 price: 100,
+    //                 id: 1
+    //               },
+    //               {
+    //                 name: 'AK-47',
+    //                 image:
+    //                   'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //                 price: 100,
+    //                 id: 1
+    //               },
+    //               {
+    //                 name: 'AK-47',
+    //                 image:
+    //                   'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //                 price: 100,
+    //                 id: 1
+    //               },
+    //               {
+    //                 name: 'AK-47',
+    //                 image:
+    //                   'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //                 price: 100,
+    //                 id: 1
+    //               },
+    //               {
+    //                 name: 'AK-47',
+    //                 image:
+    //                   'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //                 price: 100,
+    //                 id: 1
+    //               },
+    //               {
+    //                 name: 'AK-47',
+    //                 image:
+    //                   'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //                 price: 100,
+    //                 id: 1
+    //               },
+    //               {
+    //                 name: 'AK-47',
+    //                 image:
+    //                   'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //                 price: 24,
+    //                 id: 1
+    //               }
+    //             ]
+    //           },
+    //           {
+    //             name: 'tester heaven',
+    //             avatar: 'https://images3.alphacoders.com/132/1320540.png',
+    //             coin: 'hell',
+    //             win: false,
+    //             items: [
+    //               {
+    //                 name: 'AK-47 testing name length',
+    //                 image:
+    //                   'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //                 price: 100,
+    //                 id: 1
+    //               }
+    //             ]
+    //           }
+    //         ],
 
-            total: 245,
-            state: 'finished'
-          },
-          {
-            _id: 6,
-            players: [
-              {
-                name: 'tester hell',
-                avatar: 'https://images3.alphacoders.com/132/1320540.png',
-                coin: 'hell',
-                win: true,
-                items: [
-                  {
-                    name: 'AK-47',
-                    image:
-                      'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                    price: 100,
-                    id: 1
-                  }
-                ]
-              },
-              {
-                name: 'tester heaven',
-                avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
-                coin: 'heaven',
-                win: false,
-                items: [
-                  {
-                    name: 'AK-47',
-                    image:
-                      'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                    price: 100,
-                    id: 1
-                  }
-                ]
-              }
-            ],
+    //         total: 245,
+    //         state: 'finished'
+    //       },
+    //       {
+    //         _id: 6,
+    //         players: [
+    //           {
+    //             name: 'tester hell',
+    //             avatar: 'https://images3.alphacoders.com/132/1320540.png',
+    //             coin: 'hell',
+    //             win: true,
+    //             items: [
+    //               {
+    //                 name: 'AK-47',
+    //                 image:
+    //                   'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //                 price: 100,
+    //                 id: 1
+    //               }
+    //             ]
+    //           },
+    //           {
+    //             name: 'tester heaven',
+    //             avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+    //             coin: 'heaven',
+    //             win: false,
+    //             items: [
+    //               {
+    //                 name: 'AK-47',
+    //                 image:
+    //                   'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //                 price: 100,
+    //                 id: 1
+    //               }
+    //             ]
+    //           }
+    //         ],
 
-            total: 245,
-            state: 'finished'
-          }
-        ],
-        players: [
-          {
-            name: 'tester heaven',
-            avatar: 'https://images3.alphacoders.com/132/1320540.png',
-            coin: 'hell',
-            items: [
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 20,
-                id: 1
-              }
-            ]
-          }
-        ],
+    //         total: 245,
+    //         state: 'finished'
+    //       }
+    //     ],
+    //     players: [
+    //       {
+    //         name: 'tester heaven',
+    //         avatar: 'https://images3.alphacoders.com/132/1320540.png',
+    //         coin: 'hell',
+    //         items: [
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 20,
+    //             id: 1
+    //           }
+    //         ]
+    //       }
+    //     ],
 
-        total: 245,
-        state: 'created'
-      },
+    //     total: 245,
+    //     state: 'created'
+    //   },
 
-      {
-        _id: 3,
-        players: [
-          {
-            name: 'tester heaven',
-            avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
-            coin: 'heaven',
-            win_streak: 1,
-            dominating: 1,
-            target: 0,
-            items: [
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 300,
-                id: 1
-              }
-            ]
-          },
-          {
-            name: 'tester hell',
-            avatar: 'https://images3.alphacoders.com/132/1320540.png',
-            coin: 'hell',
-            win_streak: 1,
-            dominating: 1,
-            target: 1,
-            items: [
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 59,
-                id: 1
-              }
-            ]
-          }
-        ],
+    //   {
+    //     _id: 3,
+    //     players: [
+    //       {
+    //         name: 'tester heaven',
+    //         avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+    //         coin: 'heaven',
+    //         win_streak: 1,
+    //         dominating: 1,
+    //         target: 0,
+    //         items: [
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 300,
+    //             id: 1
+    //           }
+    //         ]
+    //       },
+    //       {
+    //         name: 'tester hell',
+    //         avatar: 'https://images3.alphacoders.com/132/1320540.png',
+    //         coin: 'hell',
+    //         win_streak: 1,
+    //         dominating: 1,
+    //         target: 1,
+    //         items: [
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 59,
+    //             id: 1
+    //           }
+    //         ]
+    //       }
+    //     ],
 
-        total: 245,
-        state: 'in_progress'
-      },
-      {
-        _id: 4,
-        players: [
-          {
-            name: 'tester hell',
-            avatar: 'https://images3.alphacoders.com/132/1320540.png',
-            coin: 'hell',
-            items: [
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 100,
-                id: 1
-              }
-            ]
-          },
-          {
-            name: 'tester heaven',
-            avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
-            coin: 'heaven',
-            items: [
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 100,
-                id: 1
-              }
-            ]
-          }
-        ],
-        total: 245,
-        state: 'in_progress'
-      },
-      {
-        _id: 5,
-        players: [
-          {
-            name: 'tester hell',
-            avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
-            coin: 'heaven',
-            win: false,
-            items: [
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 100,
-                id: 1
-              },
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 100,
-                id: 1
-              },
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 100,
-                id: 1
-              },
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 100,
-                id: 1
-              },
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 100,
-                id: 1
-              },
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 100,
-                id: 1
-              },
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 24,
-                id: 1
-              }
-            ]
-          },
-          {
-            name: 'tester heaven',
-            avatar: 'https://images3.alphacoders.com/132/1320540.png',
-            coin: 'hell',
-            win: true,
-            items: [
-              {
-                name: 'AK-47 testing name length',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 100,
-                id: 1
-              }
-            ]
-          }
-        ],
+    //     total: 245,
+    //     state: 'in_progress'
+    //   },
+    //   {
+    //     _id: 4,
+    //     players: [
+    //       {
+    //         name: 'tester hell',
+    //         avatar: 'https://images3.alphacoders.com/132/1320540.png',
+    //         coin: 'hell',
+    //         items: [
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 100,
+    //             id: 1
+    //           }
+    //         ]
+    //       },
+    //       {
+    //         name: 'tester heaven',
+    //         avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+    //         coin: 'heaven',
+    //         items: [
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 100,
+    //             id: 1
+    //           }
+    //         ]
+    //       }
+    //     ],
+    //     total: 245,
+    //     state: 'in_progress'
+    //   },
+    //   {
+    //     _id: 5,
+    //     players: [
+    //       {
+    //         name: 'tester hell',
+    //         avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+    //         coin: 'heaven',
+    //         win: false,
+    //         items: [
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 100,
+    //             id: 1
+    //           },
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 100,
+    //             id: 1
+    //           },
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 100,
+    //             id: 1
+    //           },
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 100,
+    //             id: 1
+    //           },
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 100,
+    //             id: 1
+    //           },
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 100,
+    //             id: 1
+    //           },
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 24,
+    //             id: 1
+    //           }
+    //         ]
+    //       },
+    //       {
+    //         name: 'tester heaven',
+    //         avatar: 'https://images3.alphacoders.com/132/1320540.png',
+    //         coin: 'hell',
+    //         win: true,
+    //         items: [
+    //           {
+    //             name: 'AK-47 testing name length',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 100,
+    //             id: 1
+    //           }
+    //         ]
+    //       }
+    //     ],
 
-        total: 245,
-        state: 'finished'
-      },
-      {
-        _id: 6,
-        players: [
-          {
-            name: 'tester hell',
-            avatar: 'https://images3.alphacoders.com/132/1320540.png',
-            coin: 'hell',
-            win: false,
-            items: [
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 100,
-                id: 1
-              }
-            ]
-          },
-          {
-            name: 'tester heaven',
-            avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
-            coin: 'heaven',
-            win: true,
-            items: [
-              {
-                name: 'AK-47',
-                image:
-                  'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
-                price: 100,
-                id: 1
-              }
-            ]
-          }
-        ],
+    //     total: 245,
+    //     state: 'finished'
+    //   },
+    //   {
+    //     _id: 6,
+    //     players: [
+    //       {
+    //         name: 'tester hell',
+    //         avatar: 'https://images3.alphacoders.com/132/1320540.png',
+    //         coin: 'hell',
+    //         win: false,
+    //         items: [
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 100,
+    //             id: 1
+    //           }
+    //         ]
+    //       },
+    //       {
+    //         name: 'tester heaven',
+    //         avatar: 'https://i.pinimg.com/236x/05/41/59/054159cb16d09475bc6eba72e41699e4.jpg',
+    //         coin: 'heaven',
+    //         win: true,
+    //         items: [
+    //           {
+    //             name: 'AK-47',
+    //             image:
+    //               'https://community.fastly.steamstatic.com/economy/image/6TMcQ7eX6E0EZl2byXi7vaVKyDk_zQLX05x6eLCFM9neAckxGDf7qU2e2gu64OnAeQ7835Ff5GLNfDY0jhyo8DEiv5dbPK47pbcyR_m4lcnvtWQ/360fx360f',
+    //             price: 100,
+    //             id: 1
+    //           }
+    //         ]
+    //       }
+    //     ],
 
-        total: 245,
-        state: 'finished'
-      }
-    ],
+    //     total: 245,
+    //     state: 'finished'
+    //   }
+    // ],
     coinFlipFilters: {
       sort: 'highest amount first',
       personalCoinFlips: false,
@@ -403,6 +404,26 @@ export const store = createStore({
     jackpotNavTotal: null
   },
   mutations: {
+    setBattles(state, battles) {
+      state.battles = Array.isArray(battles) ? battles : []
+    },
+    patchBattleById(state, { battleId, patch }) {
+      const idx = state.battles.findIndex((b) => String(b._id) === String(battleId))
+      if (idx === -1) return
+      state.battles[idx] = { ...state.battles[idx], ...(patch || {}) }
+    },
+    /** Insert new coinflip or merge into existing row (same `gameid` / `_id`). */
+    upsertCoinflipGame(state, game) {
+      if (!game || game._id == null || game._id === '') return
+      const id = String(game._id)
+      const list = Array.isArray(state.battles) ? state.battles : []
+      const idx = list.findIndex((b) => String(b._id) === id)
+      if (idx === -1) {
+        state.battles = [game, ...list]
+      } else {
+        state.battles.splice(idx, 1, { ...list[idx], ...game })
+      }
+    },
     setJackpotNavTotal(state, value) {
       const n = Number(value)
       if (Number.isFinite(n)) state.jackpotNavTotal = n
