@@ -5,6 +5,10 @@
       "destination": "http://116.202.242.165:2052/jackpot/$1"
     },
     {
+      "source": "/coinflip/(host|join|getCoinflips)",
+      "destination": "http://116.202.242.165:2052/jackpot/$1"
+    },
+    {
       "source": "/inventory/load",
       "destination": "http://116.202.242.165:2052/inventory/load"
     },
