@@ -6,7 +6,7 @@
     },
     {
       "source": "/coinflip/(host|join|getCoinflips)",
-      "destination": "http://116.202.242.165:2052/jackpot/$1"
+      "destination": "http://116.202.242.165:2052/coinflip/$1"
     },
     {
       "source": "/inventory/load",
