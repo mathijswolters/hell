@@ -1,4 +1,5 @@
 <template>
+  <pre>{{ battle }}</pre>
   <div
     class="lg:h-[68px] bg-[linear-gradient(90deg,rgba(255,52,53,0.5)_0%,rgba(255,52,53,0)_100%)] p-px 2-full flex items-center justify-center"
   >
@@ -9,20 +10,20 @@
         class="order-1 col-span-3 sm:col-span-2 lg:col-span-3 xl:col-span-2 flex items-center justify-center relative"
       >
         <div v-if="battle.players.length == 1" class="flex items-center gap-4">
-          <img :src="`/img/coins/${battle.players[0].coin}.png`" class="w-[2rem]" />
+          <img :src="`/img/coins/${coinSideValue(battle.players[0].coin)}.png`" class="w-[2rem]" />
           <UserImage :user="battle.players[0]" />
         </div>
         <div v-else class="flex items-center gap-4 sm:gap-6">
           <div
             class="relative flex items-center transition-opacity duration-200 order-1"
             :class="{
-              'opacity-40 ': !battle.players[0].win && battle.state == 'finished'
+              'opacity-40 ': battle.players[0].coin !== battle.winner?.coin && isEnded
             }"
           >
             <div
               class="border-[2px] border-[#740c0a] rounded-full -right-3 w-[1.5rem] absolute z-10"
             >
-              <img :src="`/img/coins/${battle.players[0].coin}.png`" class="w-full h-full" />
+              <img :src="`/img/coins/${coinSideValue(battle.players[0].coin)}.png`" class="w-full h-full" />
             </div>
 
             <UserImage :user="battle.players[0]" />
@@ -31,13 +32,13 @@
           <div
             class="relative flex items-center transition-opacity duration-200 order-3"
             :class="{
-              'opacity-40': !battle.players[1].win && battle.state == 'finished'
+              'opacity-40': battle.players[1].coin !== battle.winner?.coin && isEnded
             }"
           >
             <div
               class="border-[2px] border-[#740c0a] rounded-full -left-3 w-[1.5rem] absolute z-10"
             >
-              <img :src="`/img/coins/${battle.players[1].coin}.png`" class="w-full h-full" />
+              <img :src="`/img/coins/${coinSideValue(battle.players[1].coin)}.png`" class="w-full h-full" />
             </div>
             <UserImage :user="battle.players[1]" />
           </div>
@@ -45,29 +46,20 @@
         <hr class="hidden sm:flex absolute bg-[#ff3435] right-0 h-[36px] w-px opacity-30" />
       </div>
       <div
-        class="order-3 sm:order-2 col-span-3 sm:col-span-4 lg:col-span-3 xl:col-span-6 flex gap-2 overflow-hidden items-center min-w-0"
+        class="order-3 sm:order-2 col-span-3 sm:col-span-4 lg:col-span-3 xl:col-span-6 flex gap-2 overflow-hidden"
       >
-        <div class="flex gap-1 overflow-hidden min-w-0 shrink">
-          <img
-            v-for="item in battle.players[0].items"
-            :key="`h-${item._id ?? item.id}`"
-            :src="skinImageUrl(item)"
-            class="max-w-[3rem] shrink-0"
+        <img
+          v-for="item in battle.players[0].items"
+          :key="item.id"
+          :src="mapInventoryItem(item).image"
+          class="max-w-[3rem]"
+        />
+        <img
+            v-for="item in battle.players[1]?.items || []"
+            :key="item.id"
+            :src="mapInventoryItem(item).image"
+            class="max-w-[3rem]"
           />
-        </div>
-        <span
-          v-if="hasTwoPlayers"
-          class="shrink-0 font-Rubik text-[#d7b7b7] text-xs font-semibold px-0.5"
-          >VS</span
-        >
-        <div v-if="hasTwoPlayers" class="flex gap-1 overflow-hidden min-w-0 shrink">
-          <img
-            v-for="item in battle.players[1].items"
-            :key="`j-${item._id ?? item.id}`"
-            :src="skinImageUrl(item)"
-            class="max-w-[3rem] shrink-0"
-          />
-        </div>
       </div>
       <div
         class="order-2 sm:order-4 lg:order-3 col-span-4 lg:col-span-3 xl:col-span-2 flex justify-center sm:justify-normal items-center gap-2"
@@ -82,9 +74,7 @@
               })
             }}</span
           >
-          <span
-            v-if="!hasTwoPlayers"
-            class="font-semibold font-Rubik text-xs text-[#d7b7b7]"
+          <span v-if="battle.state === 'open' || battle.state === 'created' || battle.state === 'joining'" class="font-semibold font-Rubik text-xs text-[#d7b7b7]"
             >Needs: ${{
               Number(min).toLocaleString(undefined, {
                 maximumFractionDigits: 2,
@@ -102,28 +92,25 @@
       </div>
       <div class="order-4 sm:order-3 lg:order-4 flex items-center justify-end lg:justify-center">
         <CircleProgressBar
-          v-if="
-            (isLobbyOpen && !hasTwoPlayers && secondsLeft > 0) ||
-            (battle.state == 'in_progress' && secondsLeft > 0)
-          "
+          v-if="showCountdownRing && !isPassedTime"
           :value="secondsLeft"
           :max="maxTime"
           size="35"
-          :colorUnfilled="battle.state == 'in_progress' ? '#04AB53' : '#FF3435'"
-          :colorBack="battle.state == 'in_progress' ? 'rgb(4, 171, 83,0.2)' : '#FF343533'"
+          :colorUnfilled="isGreenPhase ? '#04AB53' : '#FF3435'"
+          :colorBack="isGreenPhase ? 'rgb(4, 171, 83,0.2)' : '#FF343533'"
           :startAngle="0"
           strokeWidth="15"
           ><span class="font-bold font-Rubik text-white text-xs">{{
             secondsLeft
-          }}</span></CircleProgressBar
-        >
+          }}</span>
+          </CircleProgressBar>
       </div>
 
       <div
         class="order-5 col-span-3 sm:col-span-3 xl:col-span-2 justify-end flex items-center gap-2 lg:pr-4"
       >
         <button
-          v-if="battle.players.length == 1 && !battle.joining && isLobbyOpen"
+          v-if="showJoinButton"
           class="flex items-center px-3 h-9 bg-[#ff3435] border-[#530000] border border-solid font-bold font-Rubik text-white text-sm whitespace-nowrap"
           @click="
             openModal('join coinflip', { battle: this.battle, secondsLeft: this.secondsLeft })
@@ -131,13 +118,13 @@
         >
           JOIN
         </button>
-        <div v-if="battle.state == 'ending'" class="flex items-center gap-2">
+        <div v-if="isEnded" class="flex items-center gap-2">
           <img
-            :src="`/img/coins/${battle.players[0].win ? battle.players[0].coin : battle.players[1].coin}.png`"
+            :src="`/img/coins/${coinSideValue(battle.winner.coin)}.png`"
             class="w-[1.5rem]"
           />
           <img
-            v-lazy="battle.players[0].win ? battle.players[0].avatar : battle.players[1].avatar"
+            v-lazy="battle.winner.avatar"
             class="min-w-[2.25rem] min-h-[2.25rem] w-[2.25rem] h-[2.25rem] rounded-[4px] object-cover"
           />
         </div>
@@ -159,9 +146,7 @@ import Target_icon from '../icons/Target_icon.vue'
 import { mapActions } from 'vuex'
 import { openModal } from '@/modalStore'
 import UserImage from '../UserImage.vue'
-
 import { normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
-
 export default {
   name: 'CoinflipRow',
   props: {
@@ -179,27 +164,42 @@ export default {
       secondsLeft: 0,
       activeModal: null,
       min: 0,
-      max: 0,
-      /** After pre-flip countdown ends we auto-open the game modal once so the coin animation can run. */
-      preflipAutoOpened: false
+      max: 0
     }
   },
   created() {},
   computed: {
-    isLobbyOpen() {
-      return this.battle.state === 'created' || this.battle.state === 'open'
+    isEnded() {
+      const s = this.battle?.state
+      return s === 'finished' || s === 'ended'
     },
-    hasTwoPlayers() {
-      return (this.battle.players?.length ?? 0) >= 2
+    isLobbyPhase() {
+      const s = this.battle?.state
+      return s === 'open' || s === 'created' || s === 'joining'
     },
-    /** Both players joined: run short timer before flip animation (matches Game_Modal). */
-    isPreflipPhase() {
-      return this.hasTwoPlayers && this.battle.state === 'in_progress'
+    isPassedTime() {
+      if (!this.battle.server_time || this.battle.server_time > ( this.battle.hosted + 30 )) {
+        return true
+      }
+      return false
+    },
+    isGreenPhase() {
+      const s = this.battle?.state
+      return s === 'joined' || s === 'ending' || s === 'in_progress'
+    },
+    showCountdownRing() {
+      return this.isLobbyPhase || (this.isGreenPhase && this.secondsLeft > 0)
+    },
+    showJoinButton() {
+      return (
+        this.battle.players.length === 1 &&
+        !this.battle.joining &&
+        this.battle.state !== 'joining' &&
+        this.isLobbyPhase
+      )
     },
     maxTime() {
-      if (this.battle.state === 'finished') return Number(this.time) || 10
-      if (this.isPreflipPhase) return 10
-      return 30
+      return this.isLobbyPhase ? 30 : 10
     }
 
     // inBattle: function () {
@@ -210,6 +210,16 @@ export default {
   },
   methods: {
     ...mapActions(['updateBattle', 'updateBattleState', 'updatePlayerResult', 'removeBattle']),
+    coinSideValue(coin) {
+      return coin === 2 ? 'hell' : 'heaven'
+    },
+    mapInventoryItem(item, index = 0) {
+      return {
+        ...item,
+        image: normalizeSteamEconomyImageUrl(item?.image) || item?.image,
+        _id: item?._id ?? item?.id ?? item?.assetid ?? item?.asset_id ?? index
+      }
+    },
     // openBattle(battle) {
     //   this.$router.push({
     //     path: `/coinflip/${battle._id}`, // Construct the path with the slug
@@ -227,10 +237,6 @@ export default {
     },
     winnerModal() {
       this.openModal('winner')
-    },
-    skinImageUrl(skin) {
-      const raw = skin?.image ?? ''
-      return normalizeSteamEconomyImageUrl(raw) || raw
     },
     // playerJoinedProtocol() {
     //   this.openModal('game'), this.startCountdown
@@ -262,37 +268,6 @@ export default {
       this.secondsLeft = startingTime
       this.startCountdown()
     },
-    syncCountdownToBattle() {
-      if (this.battle.state === 'finished') {
-        this.preflipAutoOpened = false
-        this.restartCountdown(Number(this.time) || 10)
-        return
-      }
-      if (this.isPreflipPhase) {
-        this.preflipAutoOpened = false
-        this.restartCountdown(10)
-        return
-      }
-      if (this.isLobbyOpen && !this.hasTwoPlayers) {
-        this.preflipAutoOpened = false
-        this.restartCountdown(30)
-        return
-      }
-      if (this.hasTwoPlayers && this.isLobbyOpen) {
-        this.preflipAutoOpened = false
-        this.restartCountdown(10)
-        return
-      }
-    },
-    tryOpenGameModalForFlip() {
-      if (this.preflipAutoOpened) return
-      if (this.battle.state !== 'in_progress') return
-      this.preflipAutoOpened = true
-      this.openModal('coinflip game', {
-        battle: this.battle,
-        secondsLeft: 0
-      })
-    },
     stopCountdown() {
       if (this.intervalId) {
         clearInterval(this.intervalId)
@@ -301,40 +276,56 @@ export default {
     },
     startCountdown() {
       if (this.intervalId) return
-      // `restartCountdown` / `syncCountdownToBattle` already set `secondsLeft`.
+      if (this.isEnded) {
+        this.secondsLeft = this.time
+      } else {
+        this.secondsLeft = this.maxTime
+      }
 
       this.intervalId = setInterval(() => {
         if (this.secondsLeft > 0) {
           this.secondsLeft--
         } else {
-          if (this.battle.state === 'in_progress') {
-            this.tryOpenGameModalForFlip()
-          }
-          if (this.intervalId) {
-            clearInterval(this.intervalId)
-            this.intervalId = null
-          }
+          if (this.isGreenPhase) {
+            // this.$refs.game.flipCoin()
+            // if (this.$refs.game && this.$refs.game.flipCoin) {
+            //   this.$refs.game.flipCoin()
+            // } else {
+            //   console.log('flipCoin method is not available on the game component.')
+            //   clearInterval(this.intervalId)
+            // }
+          } else if (this.isLobbyPhase) {
+            {
+              // this.removeBattle(this.battle._id)
+            }
+          } else if (this.isEnded) {
+            {
+              // this.removeBattle(this.battle._id)
+            }
+          } else clearInterval(this.intervalId)
+          this.intervalId = null
         }
       }, 1000)
     }
   },
   mounted() {
-    this.syncCountdownToBattle()
+    this.startCountdown()
     this.calculateMinMaxNeed()
   },
   beforeUnmount() {
     this.stopCountdown()
   },
   watch: {
-    'battle._id'() {
-      this.preflipAutoOpened = false
-      this.$nextTick(() => this.syncCountdownToBattle())
-    },
-    'battle.state'() {
-      this.syncCountdownToBattle()
-    },
-    'battle.players.length'() {
-      this.syncCountdownToBattle()
+    'battle.state'(newState) {
+      if (newState === 'joined' || newState === 'ending' || newState === 'in_progress') {
+        this.restartCountdown(10)
+      } else if (newState === 'open' || newState === 'created' || newState === 'joining') {
+        this.restartCountdown(30)
+      } else if (newState === 'finished' || newState === 'ended') {
+        this.restartCountdown(this.time)
+      } else {
+        this.stopCountdown()
+      }
     }
   }
 }

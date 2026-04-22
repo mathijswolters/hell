@@ -66,7 +66,7 @@ export default {
         _id: 23,
         avatar:
           'https://image.tensorartassets.com/cdn-cgi/image/anim=false,plain=false,w=500,q=85/model_showcase/690698035015003900/63b70cf5-54fc-3411-8bab-945aadd14633.jpeg',
-        coin: this.battle.players[0].coin == 'hell' ? 'heaven' : 'hell',
+        coin: this.battle.players[0].coin == 1 ? 2 : 1,
         items: this.selectedItems
       }
 

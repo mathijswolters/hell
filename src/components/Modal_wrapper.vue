@@ -105,11 +105,17 @@ export default {
         },
         'join coinflip': {
           component: CoinflipPlayerJoin,
-          props: { battle: data.battle, secondsLeft: data.secondsLeft }
+          props: {
+            battle: data.battle ?? data.game,
+            secondsLeft: data.secondsLeft
+          }
         },
         'coinflip game': {
           component: CoinflipGame,
-          props: { battle: data.battle, secondsLeft: data.secondsLeft }
+          props: {
+            battle: data.battle ?? data.game,
+            secondsLeft: data.secondsLeft
+          }
         },
         profile: { component: ProfileModal, props: { initialTab: data } },
         'self-ban': { component: Self_Ban },

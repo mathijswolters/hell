@@ -6,7 +6,7 @@
       <!-- Header Start -->
       <div class="flex justify-between w-full h-[59px] items-center px-4 bg-[#620101]">
         <span class="font-Rubik font-extrabold text-white text-base"
-          >JOIN COINFLIP #{{ resolvedBattle._id }}</span
+          >JOIN COINFLIP #{{ battle._id }}</span
         >
         <XMarkIcon
           class="w-6 h-6 cursor-pointer hover:scale-110 transition-transform ease-linear duration-150 fill-[#d7b7b7]"
@@ -221,38 +221,37 @@
               {{ selectedItems.length }}/20 skins
             </div>
             <button
-              type="button"
               class="h-10 px-4 bg-[#ff3435] font-Rubik text-base font-extrabold text-white"
               @click="selectedItems.length > 0 ? (selectedItems = []) : closeModal()"
             >
               CANCEL
             </button>
             <button
-              type="button"
               class="h-10 px-4 font-Rubik text-base font-extrabold text-white bg-[#febd11]"
               @click="autoSelectItems()"
             >
               AUTO SELECT
             </button>
             <button
-              type="button"
               class="h-10 px-4 font-Rubik text-base font-extrabold text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              :class="{ 'bg-[#04AB53]': joinable && !joining, 'bg-[#8f0e0e]': !joinable }"
-              :disabled="joining || !joinable"
-              @click.prevent="submitJoin"
+              :class="{ 'bg-[#04AB53]': joinable && !joiningSubmit, 'bg-[#8f0e0e]': !joinable || joiningSubmit }"
+              :disabled="joiningSubmit || !joinable"
+              @click="submitJoinCoinflip"
             >
-              <template v-if="joining">JOINING...</template>
+              <template v-if="joiningSubmit">JOINING...</template>
               <template v-else>
                 {{ joinable ? 'JOIN' : 'NEEDS:' }} {{ calculateNeed }}
-                <span class="font-Rubik text-base font-extrabold text-white opacity-70"
-                  >({{
-                    Number(calculatePlayerChance).toLocaleString(undefined, {
-                      maximumFractionDigits: 2,
-                      minimumFractionDigits: 2
-                    })
-                  }}%)
-                </span>
               </template>
+              <span
+                v-if="!joiningSubmit"
+                class="font-Rubik text-base font-extrabold text-white opacity-70"
+                >({{
+                  Number(calculatePlayerChance).toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                    minimumFractionDigits: 2
+                  })
+                }}%)
+              </span>
             </button>
           </div>
         </div>
@@ -263,9 +262,11 @@
 </template>
 <script>
 import { XMarkIcon, MagnifyingGlassIcon, ChevronDownIcon } from '@heroicons/vue/24/solid'
-import { openModalFromModal } from '@/modalStore'
 import { getSteamId } from '@/auth/session'
 import { joinCoinflip, loadInventory, normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
+import { openModalFromModal } from '@/modalStore'
+import { store } from '@/store'
+
 export default {
   name: 'coinFlip_Battle',
   props: {
@@ -279,8 +280,9 @@ export default {
   },
   data() {
     return {
-      loadingInventory: false,
       searchQuery: '',
+      loadingInventory: false,
+      joiningSubmit: false,
       inventory: [],
       sort: 'highest amount first',
       sorting: ['newest first', 'oldest first', 'highest amount first', 'lowest amount first'],
@@ -290,8 +292,8 @@ export default {
       selectedItems: [],
       openedDropdown: null,
       min: 0,
-      max: 0,
-      joining: false
+      max: 0
+      // joinable: false
     }
   },
   methods: {
@@ -317,6 +319,62 @@ export default {
         this.inventory = []
       } finally {
         this.loadingInventory = false
+      }
+    },
+    resolveSteamOfferUrl(result) {
+      if (!result || typeof result !== 'object') return ''
+      const offerUrlCandidates = [
+        result.offerUrl,
+        result.offer_url,
+        result.offer?.url,
+        result.tradeOfferUrl,
+        result.trade_offer_url
+      ]
+      for (const value of offerUrlCandidates) {
+        const s = typeof value === 'string' ? value.trim() : ''
+        if (s && /^https?:\/\//i.test(s)) return s
+      }
+      const offerIdCandidates = [result.offerid, result.offer_id, result.offer?.id, result.tradeOfferId]
+      const offerId = offerIdCandidates.find((v) => v != null && String(v).trim())
+      if (offerId != null) {
+        return `https://steamcommunity.com/tradeoffer/${encodeURIComponent(String(offerId).trim())}/`
+      }
+      return ''
+    },
+    async submitJoinCoinflip() {
+      if (!this.joinable || this.joiningSubmit) return
+      const steamid = getSteamId()
+      if (!steamid) {
+        this.$toaster?.error?.('Please login first.')
+        return
+      }
+      const gameid = this.battle?._id ?? this.battle?.gameid ?? this.battle?.gameId
+      if (gameid == null) {
+        this.$toaster?.error?.('Invalid game.')
+        return
+      }
+      this.joiningSubmit = true
+      try {
+        const skins = this.selectedItems.map((item) => ({
+          assetid: item.assetid ?? item.asset_id ?? item.id ?? item._id,
+          amount: Number(item.amount) > 0 ? Number(item.amount) : 1
+        }))
+        const result = await joinCoinflip({ steamid, skins, gameid })
+        // store.commit('upsertCoinflipGame', {
+        //   ...(result || {}),
+        //   gameid: result?.gameid ?? result?.gameId ?? result?.id ?? result?._id ?? gameid
+        // })
+        const offerUrl = this.resolveSteamOfferUrl(result)
+        if (offerUrl) {
+          openModalFromModal('steam offer', { offerUrl })
+          return
+        }
+        this.closeModal()
+      } catch (error) {
+        this.$toaster?.error?.(error?.message || 'Could not join coinflip.')
+        console.error('joinCoinflip:', error)
+      } finally {
+        this.joiningSubmit = false
       }
     },
     formated_selected_time(duration) {
@@ -351,51 +409,9 @@ export default {
           }
       }
     },
-    resolveSteamOfferUrl(result) {
-      if (!result || typeof result !== 'object') return ''
-      const offerUrlCandidates = [
-        result.offerUrl,
-        result.offer_url,
-        result.offer?.url,
-        result.tradeOfferUrl,
-        result.trade_offer_url
-      ]
-      for (const value of offerUrlCandidates) {
-        const s = typeof value === 'string' ? value.trim() : ''
-        if (s && /^https?:\/\//i.test(s)) return s
-      }
-      const offerIdCandidates = [result.offerid, result.offer_id, result.offer?.id, result.tradeOfferId]
-      const offerId = offerIdCandidates.find((v) => v != null && String(v).trim())
-      if (offerId != null) {
-        return `https://steamcommunity.com/tradeoffer/${encodeURIComponent(String(offerId).trim())}/`
-      }
-      return ''
-    },
-    async submitJoin() {
-      if (!this.joinable || this.joining) return
-      const steamid = getSteamId()
-      if (!steamid) return
-      const gameid = this.resolvedBattle?._id
-      if (gameid == null || gameid === '') return
-      this.joining = true
-      try {
-        const skins = this.selectedItems.map((item) => ({
-          assetid: item.assetid ?? item.asset_id ?? item.id ?? item._id,
-          amount: Number(item.amount) > 0 ? Number(item.amount) : 1
-        }))
-        const result = await joinCoinflip({ steamid, skins, gameid })
-        const offerUrl = this.resolveSteamOfferUrl(result)
-        if (offerUrl) {
-          openModalFromModal('steam offer', { offerUrl })
-          return
-        }
-        this.closeModal()
-      } catch (error) {
-        console.error('Failed to join coinflip:', error)
-      } finally {
-        this.joining = false
-      }
-    },
+    // join() {
+    //   this.$emit('joinPlayer')
+    // },
     toggleDropdown(dropdown) {
       if (this.openedDropdown == dropdown) {
         this.openedDropdown = null
@@ -403,24 +419,9 @@ export default {
         this.openedDropdown = dropdown
       }
     },
-    effectiveHostTotal() {
-      let total = Number(this.resolvedBattle?.total)
-      if (Number.isFinite(total) && total > 0) return total
-      const host = this.resolvedBattle?.players?.[0]
-      const items = Array.isArray(host?.items) ? host.items : []
-      const fromItems = items.reduce((s, it) => s + Number(it?.price ?? 0), 0)
-      if (fromItems > 0) return fromItems
-      const v = Number(host?.value)
-      return Number.isFinite(v) && v > 0 ? v : 0
-    },
     calculateMinMaxNeed() {
-      const total = this.effectiveHostTotal()
-      if (!Number.isFinite(total) || total <= 0) {
-        this.min = 0
-        this.max = 0
-        return
-      }
-      const percentage = (total * 10) / 100
+      let total = this.battle.total
+      let percentage = (total * 10) / 100
       this.min = total - percentage
       this.max = total + percentage
     },
@@ -481,42 +482,18 @@ export default {
     }
   },
   async mounted() {
-    await this.fetchInventory()
     this.calculateMinMaxNeed()
+    await this.fetchInventory()
   },
-  watch: {
-    /** Store replaces battle objects on patch; modal props keep a stale ref unless we read from Vuex. */
-    resolvedBattle: {
-      deep: true,
-      handler(newVal, oldVal) {
-        if (oldVal != null && newVal?._id !== oldVal?._id) {
-          this.selectedItems = []
-          this.joining = false
-          void this.fetchInventory()
-        }
-        this.calculateMinMaxNeed()
-      }
-    }
-  },
+
   computed: {
-    resolvedBattle() {
-      const stale = this.battle
-      if (!stale || typeof stale !== 'object') return stale
-      const id = stale._id ?? stale.gameid
-      if (id == null || id === '') return stale
-      const list = this.$store.getters.getBattles
-      if (!Array.isArray(list)) return stale
-      const found = list.find((b) => String(b._id) === String(id))
-      return found || stale
-    },
     filteredItems() {
       const lowercaseQuery = this.searchQuery.toLowerCase()
 
       // Filter the items by the search query
       let filteredItems = this.inventory.filter((item) => {
         const name = typeof item?.name === 'string' ? item.name : ''
-        const matchesSearch = name.toLowerCase().includes(lowercaseQuery)
-        return matchesSearch
+        return name.toLowerCase().includes(lowercaseQuery)
       })
 
       if (this.sort === 'newest first') {
@@ -533,16 +510,12 @@ export default {
     },
     totalItemsValue() {
       let value = 0
-      const players = Array.isArray(this.resolvedBattle?.players)
-        ? this.resolvedBattle.players
-        : []
-      players.forEach((player) => {
-        const items = Array.isArray(player?.items) ? player.items : []
-        items.forEach((item) => {
-          value += Number(item?.price ?? 0)
+      this.battle.players.forEach((player) => {
+        player.items.forEach((item) => {
+          value += item.price
         })
       })
-      value += this.selectedItems.reduce((itemAcc, item) => itemAcc + Number(item?.price ?? 0), 0)
+      value += this.selectedItems.reduce((itemAcc, item) => itemAcc + item.price, 0)
       return value
     },
     calculatePlayerChance() {
@@ -550,13 +523,13 @@ export default {
       let totalValue = this.totalItemsValue
 
       this.selectedItems.forEach((item) => {
-        value += Number(item?.price ?? 0)
+        value += item.price
       })
       let chance = totalValue ? (value / totalValue) * 100 : 0
       return chance
     },
     calculateNeed() {
-      let value = this.selectedItems.reduce((acc, item) => acc + Number(item?.price ?? 0), 0)
+      let value = this.selectedItems.reduce((acc, item) => acc + item.price, 0)
       let need = 0
 
       if (value < this.min) {
@@ -585,7 +558,7 @@ export default {
       }
     },
     joinable() {
-      let value = this.selectedItems.reduce((acc, item) => acc + Number(item?.price ?? 0), 0)
+      let value = this.selectedItems.reduce((acc, item) => acc + item.price, 0)
       return value >= this.min && value <= this.max
     }
   }

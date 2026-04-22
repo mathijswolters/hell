@@ -305,13 +305,8 @@
 
 <script>
 import { XMarkIcon, MagnifyingGlassIcon, ChevronDownIcon } from '@heroicons/vue/24/solid'
-import { getAuth, getSteamId } from '@/auth/session'
-import {
-  hostCoinflip,
-  getCoinflips,
-  loadInventory,
-  normalizeSteamEconomyImageUrl
-} from '@/services/jackpotClient'
+import { getSteamId } from '@/auth/session'
+import { hostCoinflip, loadInventory, normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
 import { openModalFromModal } from '@/modalStore'
 import { store } from '@/store'
 export default {
@@ -412,6 +407,10 @@ export default {
         }))
         const choice = this.selectedCoinToApiValue()
         const result = await hostCoinflip({ steamid, skins, choice })
+        // store.commit('upsertCoinflipGame', {
+        //   ...(result || {}),
+        //   gameid: result?.gameid ?? result?.gameId ?? result?.id ?? result?._id
+        // })
 
         const offerUrl = this.resolveSteamOfferUrl(result)
         if (offerUrl) {
