@@ -1,5 +1,4 @@
 <template>
-  <pre>{{ battle }}</pre>
   <div
     class="lg:h-[68px] bg-[linear-gradient(90deg,rgba(255,52,53,0.5)_0%,rgba(255,52,53,0)_100%)] p-px 2-full flex items-center justify-center"
   >

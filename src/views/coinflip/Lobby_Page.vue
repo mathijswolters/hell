@@ -540,6 +540,7 @@ export default {
   },
   async mounted() {
     window.addEventListener('resize', this.updateScreenWidth)
+    console.log('====================')
     this.connectCoinflipSocket()
     try {
       const data = await getCoinflips()
@@ -648,19 +649,28 @@ export default {
       }
     },
     connectCoinflipSocket() {
+      console.log('==========connectCoinflipSocket==========')
       if (this.socket || !isSocketEnabled()) return
       this.socket = getSharedJackpotSocket()
+      console.log('==========this.socket==========', this.socket)
+
       if (!this.socket) return
       const subscribe = () => {
         // Required so server `io.to(coinflip).emit('coinflip:hosted', …)` reaches this socket (same room name).
         joinCoinflipSocketRoom(this.socket)
         this.socket.emit('coinflip:subscribe', (payload) => {
+          console.log('==========subscribe payload==========', payload)
           this.applyCoinflipSubscribePayload(payload)
         })
       }
       this.coinflipSocketHandlers = {
-        connect: () => subscribe(),
+        connect: () => {
+          console.log('==========connect==========')
+          console.log('==========this.socket==========', this.socket)
+          subscribe()
+        },
         subscribe: (payload) => {
+          console.log('here is subscribe payload: ', payload)
           this.applyCoinflipSubscribePayload(payload)
         },
         hosted: (payload) => {

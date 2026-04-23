@@ -170,9 +170,7 @@ export function normalizeSocketGameToBattle(game, server_time) {
       if (joiner) players.push(joiner)
     }
   }
-
-  
-  total = players.reduce((acc, pl) => acc + sumItemPrices(pl.items), 0)
+  const total = coinflipToNumber(players[0].value, 0) + coinflipToNumber(players[1]?.value, 0)
   const status = game.state
   const joining = !!game.joining || status === 'joining'
   const base = {
