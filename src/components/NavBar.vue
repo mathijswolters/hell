@@ -212,7 +212,7 @@
             >
               $
               {{
-                Number(coinflip).toLocaleString(undefined, {
+                Number(coinflipDisplay).toLocaleString(undefined, {
                   maximumFractionDigits: 2
                 })
               }}
@@ -645,7 +645,6 @@ export default {
   },
   data() {
     return {
-      coinflip: 0,
       jackpotFallback: 0,
       mobileDropdown: false,
       activeModal: null,
@@ -654,7 +653,7 @@ export default {
     }
   },
   computed: {
-    ...mapState(['jackpotNavTotal']),
+    ...mapState(['jackpotNavTotal', 'battles']),
     loggedIn() {
       authVersion.value
       return isLoggedIn()
@@ -669,6 +668,10 @@ export default {
     },
     jackpotDisplay() {
       return this.jackpotNavTotal != null ? this.jackpotNavTotal : this.jackpotFallback
+    },
+    coinflipDisplay() {
+      const list = Array.isArray(this.battles) ? this.battles : []
+      return list.reduce((sum, battle) => sum + Number(battle?.total_value ?? battle?.total ?? 0), 0)
     }
   },
   methods: {

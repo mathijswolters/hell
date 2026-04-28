@@ -175,6 +175,7 @@
               {{ player.name }}
             </div>
           </div>
+          <pre>{{ isFlipping }}</pre>
 
           <div
             class="order-2 flex flex-col gap-y-4 h-full justify-center relative"
@@ -199,8 +200,7 @@
                   id="coin"
                   :class="{
                     flipping: isFlipping,
-                    hellWinner: isEnded && battle.winner.coin === 2,
-                    heavenWinner: isEnded && battle.winner.coin === 1
+                    hellWinner: isEnded && !isFlipping && coinSideValue(battle.coin) === 'hell',
                   }"
                 >
                   <div id="front" :class="{ win: isEnded }">
@@ -221,8 +221,8 @@
                   v-if="isEnded"
                   class="font-Rubik font-medium text-sm"
                   :class="{
-                    'text-[#93C8FB]': winner.coin === 'heaven',
-                    'text-[#FF4444]': winner.coin === 'hell'
+                    'text-[#93C8FB]': battle.coin === 1,
+                    'text-[#FF4444]': battle.coin === 2
                   }"
                 >
                   Ticket: {{ battle.ticket }}
@@ -361,6 +361,7 @@ export default {
       amountRedAmount: 0,
       amountBlueAmount: 0,
       isFlipping: false,
+      hasAnimatedFlipResult: false,
       confetti: null,
       localSecondsLeft: this.secondsLeft,
       countdownInterval: null,
@@ -379,10 +380,20 @@ export default {
     },
     'battle.state'(newState) {
       if (newState === 'joined' || newState === 'ending' || newState === 'in_progress') {
-        this.startCountdown(5)
+        this.startCountdown(10)
       } else if (newState === 'open' || newState === 'created' || newState === 'joining') {
         this.startCountdown(25)
+      } else if (
+        (newState === 'ended' || newState === 'finished') &&
+        this.hasFlipResultData &&
+        !this.hasAnimatedFlipResult
+      ) {
+        this.flipCoin()
       }
+    },
+    hasFlipResultData(newValue) {
+      if (!newValue || this.hasAnimatedFlipResult || this.isFlipping || !this.isEnded) return
+      this.flipCoin()
     }
   },
   methods: {
@@ -491,55 +502,44 @@ export default {
         playerIndex: 1,
         result: updatedBattle.players[1].result
       })
-      const playerChances = this.battle.players.map((player) =>
-        this.calculateTotalItemsValue(player.items)
-      )
-      if (this.isGreenPhase && this.localSecondsLeft == 0) {
-        const redChance =
-          (this.battle.players[0].coin === 'hell'
-            ? playerChances[0].chance
-            : playerChances[1].chance) || 0
-        const blueChance =
-          (this.battle.players[1].coin === 'heaven'
-            ? playerChances[1].chance
-            : playerChances[0].chance) || 0
+      console.log('+++++++this.battle.state++++++++', this.battle.state, this.localSecondsLeft)
+      if (this.battle.state == 'ended' && this.localSecondsLeft == 0) {
 
-        const randomChance = Math.random() * 100
-        const isRedWin = randomChance < redChance
+        const isRedWin = this.battle.coin == 2 ? 1 : 0;
+        console.log('+++++++isRedWin++++++++', isRedWin, this.battle)
 
         const randomFlips = Math.floor(Math.random() * 4 + 9)
+        console.log('-----', randomFlips)
         this.currentDegrees += 180 * randomFlips
 
-        if (isRedWin) {
-          this.amountRedAmount++
+      if (isRedWin) {
+        this.amountRedAmount++
+        this.currentDegrees =
+          this.currentDegrees % 360 === 180 ? this.currentDegrees : this.currentDegrees + 180
+      } else {
+        this.amountBlueAmount++
+        this.currentDegrees =
+          this.currentDegrees % 360 === 0 ? this.currentDegrees : this.currentDegrees + 180
+      }
 
-          this.currentDegrees =
-            this.currentDegrees % 360 === 180 ? this.currentDegrees : this.currentDegrees + 180
-        } else {
-          this.amountBlueAmount++
-
-          this.currentDegrees =
-            this.currentDegrees % 360 === 0 ? this.currentDegrees : this.currentDegrees + 180
-        }
-
-        document.getElementById('coin').style.transform = `rotateY(${this.currentDegrees}deg)`
-        document.getElementById('coin_container').style.scale = '1.2'
+      this.isFlipping = true
+      document.getElementById('coin').style.transform = `rotateY(${this.currentDegrees}deg)`
+      document.getElementById('coin_container').style.scale = '1.2'
 
         document.getElementById('coin_container').style.transform = 'translateY(20px)'
-        this.isFlipping = true
         setTimeout(() => {
           document.getElementById('coin_container').style.scale = '1'
           document.getElementById('coin_container').style.transform = 'translateY(0px)'
         }, 4500)
         setTimeout(() => {
           if (isRedWin) {
-            if (this.battle.players[0].coin == 'hell') {
+            if (this.battle.coin == 2) {
               this.updateResult(0, 1)
             } else {
               this.updateResult(1, 0)
             }
           } else {
-            if (this.battle.players[0].coin == 'heaven') {
+            if (this.battle.coin == 1) {
               this.updateResult(0, 1)
             } else {
               this.updateResult(1, 0)
@@ -577,10 +577,6 @@ export default {
     handleCountdownEnd() {
       if (this.isLobbyPhase) {
         console.log('Countdown ended: lobby / join-wait phase expired.')
-      } else if (this.isGreenPhase && this.localSecondsLeft == 0) {
-        setTimeout(() => {
-          this.flipCoin()
-        }, 500)
       }
     },
     updateScreenWidth() {
@@ -621,8 +617,14 @@ export default {
     showCountdownRing() {
       return this.isLobbyPhase || (this.isGreenPhase && this.localSecondsLeft > 0)
     },
+    hasFlipResultData() {
+      const hasCoin = this.battle?.coin === 1 || this.battle?.coin === 2
+      const hasResultMeta =
+        this.battle?.ticket != null || this.battle?.hash != null || this.battle?.roll != null
+      return hasCoin && hasResultMeta
+    },
     countdownMax() {
-      return this.isLobbyPhase ? 30 : 5
+      return this.isLobbyPhase ? 30 : 10
     },
     signedIn() {
       authVersion.value
@@ -630,7 +632,7 @@ export default {
     }
   },
   mounted() {
-    let initial = Number(this.secondsLeft) > 0 ? Number(this.secondsLeft) : this.countdownMax
+    let initial = 10
     this.startCountdown(initial)
     window.addEventListener('resize', this.updateScreenWidth)
   },
@@ -685,10 +687,11 @@ export default {
   transform: rotateY(180deg);
   transition: transform 0s !important ;
 }
-#coin.heavenWinner {
+
+/* #coin.heavenWinner {
   transform: rotateY(0deg);
   transition: transform 0s !important;
-}
+} */
 
 #coin > * {
   position: absolute;

@@ -44,7 +44,7 @@
 
             <span class="font-bold font-Rubik text-base text-[#72b5ff]">
               {{
-                Number(previos100Percentage.heavenPercentage).toLocaleString(undefined, {
+                Number(previos100Percentage.heavenPercentage || 0).toLocaleString(undefined, {
                   maximumFractionDigits: 2,
                   minimumFractionDigits: 0
                 })
@@ -61,7 +61,7 @@
 
             <span class="font-bold font-Rubik text-base text-[#ff3435]">
               {{
-                Number(previos100Percentage.hellPercentage).toLocaleString(undefined, {
+                Number(previos100Percentage.hellPercentage || 0).toLocaleString(undefined, {
                   maximumFractionDigits: 2,
                   minimumFractionDigits: 0
                 })
@@ -79,7 +79,7 @@
       <div
         class="hidden xl:flex font-Rubik font- text-2xl text-white whitespace-nowrap order-2 xl:order-1 font-[600]"
       >
-        GAMES <span class="ml-1 font-bold text-2xl font-Rubik text-[#FF3435]">(2)</span>
+        GAMES <span class="ml-1 font-bold text-2xl font-Rubik text-[#FF3435]">({{this.battles.length}})</span>
       </div>
       <!-- Left End -->
       <div
@@ -123,7 +123,10 @@
           class="hidden sm:flex flex-wrap-reverse sm:flex-wrap w-full xl:w-fit lg:flex-nowrap items-center justify-center sm:justify-between xl:justify-normal gap-2"
         >
           <div class="flex xl:hidden font-Rubik font-bold text-2xl text-white whitespace-nowrap">
-            GAMES <span class="ml-1 font-bold text-2xl font-Rubik text-[#FF3435]">(2)</span>
+            GAMES
+            <span class="ml-1 font-bold text-2xl font-Rubik text-[#FF3435]">
+              (${{ totalGamesValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }})
+            </span>
           </div>
           <div class="flex items-center gap-2">
             <button class="select-none" @click="openModal('coinflip settings')">
@@ -149,7 +152,10 @@
         <div class="sm:hidden flex flex-wrap-reverse w-full items-center justify-center gap-2">
           <div class="flex items-center justify-between w-full">
             <div class="flex xl:hidden font-Rubik font-bold text-2xl text-white whitespace-nowrap">
-              GAMES <span class="ml-1 font-bold text-2xl font-Rubik text-[#FF3435]">(2)</span>
+              GAMES
+              <span class="ml-1 font-bold text-2xl font-Rubik text-[#FF3435]">
+                (${{ totalGamesValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }})
+              </span>
             </div>
             <div class="flex items-center gap-4">
               <button class="select-none" @click="openModal('coinflip settings')">
@@ -536,11 +542,14 @@ export default {
       }
 
       return battlesArray
+    },
+    totalGamesValue() {
+      const list = Array.isArray(this.filteredBattles) ? this.filteredBattles : []
+      return list.reduce((sum, battle) => sum + Number(battle?.total_value ?? battle?.total ?? 0), 0)
     }
   },
   async mounted() {
     window.addEventListener('resize', this.updateScreenWidth)
-    console.log('====================')
     this.connectCoinflipSocket()
     try {
       const data = await getCoinflips()

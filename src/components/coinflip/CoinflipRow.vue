@@ -119,11 +119,11 @@
         </button>
         <div v-if="isEnded" class="flex items-center gap-2">
           <img
-            :src="`/img/coins/${coinSideValue(battle.winner.coin)}.png`"
+            :src="`/img/coins/${coinSideValue(battle.coin)}.png`"
             class="w-[1.5rem]"
           />
           <img
-            v-lazy="battle.winner.avatar"
+            v-lazy="battle.winner?.avatar"
             class="min-w-[2.25rem] min-h-[2.25rem] w-[2.25rem] h-[2.25rem] rounded-[4px] object-cover"
           />
         </div>
