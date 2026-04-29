@@ -130,8 +130,8 @@
       <div
         class="flex items-center justify-center flex-col w-full pt-8 relative transition-all duration-[0.4s]"
         :class="{
-          'gap-4 sm:gap-8': !isEnded,
-          'gap-4 sm:gap-16': isEnded
+          'gap-4 sm:gap-8': !hasAnimatedFlipResult,
+          'gap-4 sm:gap-16': hasAnimatedFlipResult
         }"
       >
         <!-- <button @click="testfunction()">test</button>
@@ -148,7 +148,7 @@
             :class="{
               'order-1': index == 0,
               'order-3': index == 1,
-              'opacity-50 ': isEnded && player.coin !== battle.winner?.coin,
+              'opacity-50 ': hasAnimatedFlipResult && player.coin !== battle.winner?.coin,
               'pr-3': index == 1
             }"
             class="flex flex-col gap-y-4 justify-center items-center transition-opacity duration-[1000ms] w-[140px] sm:w-[9.25rem]"
@@ -175,8 +175,6 @@
               {{ player.name }}
             </div>
           </div>
-          <pre>{{ isFlipping }}</pre>
-
           <div
             class="order-2 flex flex-col gap-y-4 h-full justify-center relative"
             :class="{ 'sm:ml-12': battle.players.length == 1 }"
@@ -200,13 +198,16 @@
                   id="coin"
                   :class="{
                     flipping: isFlipping,
-                    hellWinner: isEnded && !isFlipping && coinSideValue(battle.coin) === 'hell',
+                    hellWinner:
+                      hasAnimatedFlipResult &&
+                      !isFlipping &&
+                      coinSideValue(battle.coin) === 'hell',
                   }"
                 >
-                  <div id="front" :class="{ win: isEnded }">
+                  <div id="front" :class="{ win: hasAnimatedFlipResult }">
                     <img src="../../assets/img/coins/heaven.png" />
                   </div>
-                  <div id="back" :class="{ win: isEnded }">
+                  <div id="back" :class="{ win: hasAnimatedFlipResult }">
                     <img src="../../assets/img/coins/hell.png" />
                   </div>
                 </div>
@@ -218,7 +219,7 @@
             >
               <transition name="fade-slide">
                 <span
-                  v-if="isEnded"
+                  v-if="hasAnimatedFlipResult"
                   class="font-Rubik font-medium text-sm"
                   :class="{
                     'text-[#93C8FB]': battle.coin === 1,
@@ -228,10 +229,15 @@
                   Ticket: {{ battle.ticket }}
                 </span>
               </transition>
-              <span v-if="isEnded" class="font-Rubik font-medium text-sm text-[#d7b7b7]">
+              <span v-if="hasAnimatedFlipResult" class="font-Rubik font-medium text-sm text-[#d7b7b7]">
                 Hash: {{ battle.hash }}
               </span>
-              <span v-if="battle.state === 'ending' || isEnded" class="font-Rubik font-semibold text-sm text-[#d7b7b7]"> EOS: {{ battle.block }} </span>
+              <span
+                v-if="hasAnimatedFlipResult && battle.block != null"
+                class="font-Rubik font-semibold text-sm text-[#d7b7b7]"
+              >
+                EOS: {{ battle.block }}
+              </span>
             </span>
           </div>
         </div>
@@ -488,6 +494,8 @@ export default {
     },
     flipCoin() {
       if (this.isFlipping) return
+      // Hide proof/winner info until the animation's final timeout completes.
+      this.hasAnimatedFlipResult = false
       let updatedBattle = { ...this.battle }
       updatedBattle.state = 'joined'
       this.updateBattle({ battleIndex: this.battle.id, updatedBattle })
@@ -551,6 +559,8 @@ export default {
             newState: 'ended'
           })
 
+          // Reveal proof/winner UI only after the flip animation finishes.
+          this.hasAnimatedFlipResult = true
           this.isFlipping = false
           // if (this.battle.players[0].win) {
           //   this.winnerModal()
@@ -632,6 +642,9 @@ export default {
     }
   },
   mounted() {
+    // If modal opens after the server already marked the battle completed,
+    // show the proof immediately (no flip animation needed).
+    this.hasAnimatedFlipResult = this.isEnded && this.hasFlipResultData
     let initial = 10
     this.startCountdown(initial)
     window.addEventListener('resize', this.updateScreenWidth)
