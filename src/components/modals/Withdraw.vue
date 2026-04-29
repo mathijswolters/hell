@@ -36,7 +36,7 @@
               </div>
               <div class="flex items-center justify-center w-full gap-6">
                 <img
-                  class="w-[90px] xl:w-[128px] hover:scale-105 transform transition-all duration-300 cursor-pointer rounded-full"
+                  class="w-[90px] h-[90px] xl:w-[128px] xl:h-[128px] hover:scale-105 transform transition-all duration-300 cursor-pointer rounded-full"
                   :class="{
                     'opacity-50': selectedCoin != '' && selectedCoin != 'heaven',
                     heaven: selectedCoin == 'heaven'
@@ -45,7 +45,7 @@
                   src="../../assets/img/coins/heaven.png"
                 />
                 <img
-                  class="w-[90px] xl:w-[128px] hover:scale-105 transform transition-all duration-300 cursor-pointer rounded-full"
+                  class="w-[90px] h-[90px] xl:w-[128px] xl:h-[128px] hover:scale-105 transform transition-all duration-300 cursor-pointer rounded-full"
                   :class="{
                     'opacity-50': selectedCoin != '' && selectedCoin != 'hell',
                     hell: selectedCoin == 'hell'

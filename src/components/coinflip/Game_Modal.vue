@@ -192,28 +192,32 @@
                 localSecondsLeft
               }}</span></CircleProgressBar
             >
-            <div v-else class="h-[90px] sm:h-[148px] w-[90px] sm:w-[148px] relative z-20">
-              <div id="coin_container" class="transition-all duration-[4500ms] z-10">
+            <div v-else class="h-[100px] sm:h-[160px] w-[100px] sm:w-[160px] relative z-20">
+              <div id="coin_container" class="z-10">
                 <div
                   id="coin"
                   :class="{
-                    flipping: isFlipping,
-                    hellWinner:
-                      hasAnimatedFlipResult &&
-                      !isFlipping &&
-                      coinSideValue(battle.coin) === 'hell',
+                    'coin-win-heaven':
+                      hasAnimatedFlipResult && !isFlipping && coinSideValue(battle.coin) === 'heaven',
+                    'coin-win-hell':
+                      hasAnimatedFlipResult && !isFlipping && coinSideValue(battle.coin) === 'hell',
                   }"
                 >
-                  <div id="front" :class="{ win: hasAnimatedFlipResult }">
-                    <img src="../../assets/img/coins/heaven.png" />
-                  </div>
-                  <div id="back" :class="{ win: hasAnimatedFlipResult }">
-                    <img src="../../assets/img/coins/hell.png" />
-                  </div>
+                  <div
+                    :key="`${spriteRunId}-${activeCoinSprite}`"
+                    class="coin-sprite"
+                    :class="[
+                      {
+                        animate: isFlipping,
+                        ended: hasAnimatedFlipResult && !isFlipping
+                      }
+                    ]"
+                    :style="{ backgroundImage: 'url(' + activeCoinSpriteUrl + ')', height: '99%', width: '105%' }"
+
+                  />
                 </div>
               </div>
             </div>
-
             <span
               class="hidden sm:flex flex-col items-center w-full left-0 right-0 whitespace-nowrap top-[calc(100%+3rem)] sm:top-[calc(100%+1rem)] absolute"
             >
@@ -345,6 +349,14 @@ import { authVersion, isLoggedIn } from '@/auth/session'
 import { openModalFromModal } from '@/modalStore'
 import { startSteamOAuth } from '@/auth/steamLogin'
 import { normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
+import B2B_SPRITE from '@/assets/img/B2B sprite_q.png'
+import B2B2_SPRITE from '@/assets/img/B2B2 sprite_q.png'
+import R2B_SPRITE from '@/assets/img/R2B sprite_q.png'
+import R2B2_SPRITE from '@/assets/img/R2B2 sprite_q.png'
+import B2R_SPRITE from '@/assets/img/B2R sprite_q.png'
+import B2R2_SPRITE from '@/assets/img/B2R2 sprite_q.png'
+import R2R_SPRITE from '@/assets/img/R2R sprite_q.png'
+import R2R2_SPRITE from '@/assets/img/R2R2 sprite_q.png'
 export default {
   name: 'coinFlip_Battle',
   props: {
@@ -363,11 +375,13 @@ export default {
   data() {
     return {
       battleData: null,
-      currentDegrees: 0,
-      amountRedAmount: 0,
-      amountBlueAmount: 0,
       isFlipping: false,
       hasAnimatedFlipResult: false,
+      activeCoinSprite: 'heaven',
+      activeCoinSpriteUrl: B2B_SPRITE,
+      heavenCoinSprites: [B2B_SPRITE, B2B2_SPRITE, R2B_SPRITE, R2B2_SPRITE],
+      hellCoinSprites: [B2R_SPRITE, B2R2_SPRITE, R2R_SPRITE, R2R2_SPRITE],
+      spriteRunId: 0,
       confetti: null,
       localSecondsLeft: this.secondsLeft,
       countdownInterval: null,
@@ -386,7 +400,7 @@ export default {
     },
     'battle.state'(newState) {
       if (newState === 'joined' || newState === 'ending' || newState === 'in_progress') {
-        this.startCountdown(10)
+        this.startCountdown(15)
       } else if (newState === 'open' || newState === 'created' || newState === 'joining') {
         this.startCountdown(25)
       } else if (
@@ -411,6 +425,13 @@ export default {
         .toLowerCase()
       if (normalized === 'hell') return 'hell'
       return 'heaven'
+    },
+    pickRandomCoinSprite(side) {
+      const pool = side === 'hell' ? this.hellCoinSprites : this.heavenCoinSprites
+      if (!Array.isArray(pool) || pool.length === 0) return
+      const randomIndex = Math.floor(Math.random() * pool.length)
+      console.log('+++++++pool[randomIndex]++++++++', pool[randomIndex])
+      this.activeCoinSpriteUrl = pool[randomIndex]
     },
     mapInventoryItem(item, index = 0) {
       return {
@@ -494,79 +515,54 @@ export default {
     },
     flipCoin() {
       if (this.isFlipping) return
+
       // Hide proof/winner info until the animation's final timeout completes.
       this.hasAnimatedFlipResult = false
-      let updatedBattle = { ...this.battle }
+
+      const updatedBattle = { ...this.battle }
       updatedBattle.state = 'joined'
       this.updateBattle({ battleIndex: this.battle.id, updatedBattle })
       this.updateBattleState({ battleIndex: this.battle.id, newState: updatedBattle.state })
+
+      // Pre-fill the `win` flags while the animation runs; we'll set the final winner after 5s.
       this.updatePlayerResult({
         battleIndex: this.battle.id,
         playerIndex: 0,
-        result: updatedBattle.players[0].result
+        result: updatedBattle.players?.[0]?.result ?? false
       })
       this.updatePlayerResult({
         battleIndex: this.battle.id,
         playerIndex: 1,
-        result: updatedBattle.players[1].result
+        result: updatedBattle.players?.[1]?.result ?? false
       })
-      console.log('+++++++this.battle.state++++++++', this.battle.state, this.localSecondsLeft)
-      if (this.battle.state == 'ended' && this.localSecondsLeft == 0) {
 
-        const isRedWin = this.battle.coin == 2 ? 1 : 0;
-        console.log('+++++++isRedWin++++++++', isRedWin, this.battle)
-
-        const randomFlips = Math.floor(Math.random() * 4 + 9)
-        console.log('-----', randomFlips)
-        this.currentDegrees += 180 * randomFlips
-
-      if (isRedWin) {
-        this.amountRedAmount++
-        this.currentDegrees =
-          this.currentDegrees % 360 === 180 ? this.currentDegrees : this.currentDegrees + 180
-      } else {
-        this.amountBlueAmount++
-        this.currentDegrees =
-          this.currentDegrees % 360 === 0 ? this.currentDegrees : this.currentDegrees + 180
-      }
+      // New animation driver: CSS handles both rotation + sprite frames.
+      const winnerSide = this.coinSideValue(this.battle.coin) // 'heaven' | 'hell'
+      this.activeCoinSprite = winnerSide
+      this.pickRandomCoinSprite(winnerSide)
+      this.spriteRunId += 1
 
       this.isFlipping = true
-      document.getElementById('coin').style.transform = `rotateY(${this.currentDegrees}deg)`
-      document.getElementById('coin_container').style.scale = '1.2'
+      setTimeout(() => {
+        // Mark final winner based on which player's coin matches `battle.coin`.
+        const players = Array.isArray(this.battle?.players) ? this.battle.players : []
+        const winnerIndex = players.findIndex((p) => this.coinSideValue(p?.coin) === winnerSide)
+        const winIndex = winnerIndex === -1 ? 0 : winnerIndex
+        const loseIndex = winIndex === 0 ? 1 : 0
+        if (players.length >= 2) {
+          this.updateResult(winIndex, loseIndex)
+        }
 
-        document.getElementById('coin_container').style.transform = 'translateY(20px)'
-        setTimeout(() => {
-          document.getElementById('coin_container').style.scale = '1'
-          document.getElementById('coin_container').style.transform = 'translateY(0px)'
-        }, 4500)
-        setTimeout(() => {
-          if (isRedWin) {
-            if (this.battle.coin == 2) {
-              this.updateResult(0, 1)
-            } else {
-              this.updateResult(1, 0)
-            }
-          } else {
-            if (this.battle.coin == 1) {
-              this.updateResult(0, 1)
-            } else {
-              this.updateResult(1, 0)
-            }
-          }
-          this.startConfetti()
-          this.$store.dispatch('updateBattleState', {
-            battleId: this.battle._id,
-            newState: 'ended'
-          })
+        this.startConfetti()
+        this.$store.dispatch('updateBattleState', {
+          battleId: this.battle._id,
+          newState: 'ended'
+        })
 
-          // Reveal proof/winner UI only after the flip animation finishes.
-          this.hasAnimatedFlipResult = true
-          this.isFlipping = false
-          // if (this.battle.players[0].win) {
-          //   this.winnerModal()
-          // }
-        }, 10000)
-      }
+        // Reveal proof/winner UI only after the flip animation finishes.
+        this.hasAnimatedFlipResult = true
+        this.isFlipping = false
+      }, 5000)
     },
     winnerModal() {
       this.$emit('winnerModal')
@@ -645,7 +641,8 @@ export default {
     // If modal opens after the server already marked the battle completed,
     // show the proof immediately (no flip animation needed).
     this.hasAnimatedFlipResult = this.isEnded && this.hasFlipResultData
-    let initial = 10
+    this.pickRandomCoinSprite(this.coinSideValue(this.battle?.coin))
+    let initial = 15
     this.startCountdown(initial)
     window.addEventListener('resize', this.updateScreenWidth)
   },
@@ -681,71 +678,59 @@ export default {
 }
 #coin {
   position: relative;
-  width: 148px;
-  height: 148px;
-  background: white;
-  perspective: 1000px;
-  transition:
-    transform 10s ease,
-    box-shadow 0.2s ease;
-  transform-style: preserve-3d;
+  width: 160px;
+  height: 160px;
+  --coin-size: 160px;
+  /* sprite sheets are 256x(256*121), so 121 square frames vertically stacked */
+  --sprite-frames: 121;
   background-color: transparent;
   box-sizing: border-box;
   border-radius: 50%;
-  align-self: center;
-
-  /* box-shadow: 0 10px 10px rgba(0, 0, 0, 0.2); */
-}
-#coin.hellWinner {
-  transform: rotateY(180deg);
-  transition: transform 0s !important ;
+  overflow: hidden;
 }
 
-/* #coin.heavenWinner {
-  transform: rotateY(0deg);
-  transition: transform 0s !important;
-} */
-
-#coin > * {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  backface-visibility: hidden;
+.coin-sprite {
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
+  background-size: 100% auto; /* same idea as your sample: width fixed, height auto */
+  background-repeat: no-repeat;
+  background-position: 0 0;
 }
 
-#front {
-  /* background-image: url(../../assets/img/coins/heaven.png); */
-  z-index: 2;
+@keyframes coinSpriteAnim {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 100%;
+  }
 }
-#front.win {
+
+/* One-shot sprite playback (same pattern as reference code). */
+.coin-sprite.animate {
+  animation: coinSpriteAnim 5s steps(120, end) forwards;
+}
+
+.coin-sprite.ended {
+  background-position: 0 100%;
+}
+
+#coin.coin-win-heaven {
   filter: drop-shadow(0px 0px 20px #95c9fb);
   transition: filter 1s;
 }
-#front img,
-#back img {
-  width: 148px;
-  height: 148px;
-}
-#back.win {
+
+#coin.coin-win-hell {
   filter: drop-shadow(0px 0px 20px #db0404);
   transition: filter 1s;
 }
-#back {
-  /* background-image: url(../../assets/img/coins/hell.png); */
-  transform: rotateY(180deg);
-}
+
 @media (max-width: 640px) {
   #coin {
-    width: 90px;
-    height: 90px;
-  }
-  #front img,
-  #back img {
-    width: 90px;
-    height: 90px;
+    width: 100px;
+    height: 100px;
+    --coin-size: 100px;
   }
 }
 
