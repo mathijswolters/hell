@@ -139,7 +139,7 @@
         </div>
         <!-- Controls End -->
         <!-- Items Selection Start -->
-        <div class="h-[15rem] lg:h-[21.4375rem] w-full relative">
+        <div class="h-[35.25rem] w-full relative">
           <div
             v-if="loadingInventory"
             class="absolute inset-0 z-20 flex items-center justify-center bg-[rgba(0,0,0,0.25)]"

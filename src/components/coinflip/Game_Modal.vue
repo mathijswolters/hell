@@ -158,10 +158,10 @@
             >
               <img
                 v-lazy="player.avatar"
-                class="w-[76.85px] h-[76.85px] sm:w-[9.25rem] sm:h-[9.25rem] rounded-[4px] object-cover"
+                class="w-[76.85px] h-[76.85px] sm:w-[9.25rem] sm:h-[9.25rem] rounded-[4px] object-cover border-[0.5px] border-solid border-white"
               />
               <img
-                :src="`/img/coins/${coinSideValue(player.coin)}.png`"
+                :src="`/src/assets/img/coins/${coinSideValue(player.coin)}.png`"
                 class="absolute sm:max-w-[3.5rem] w-9 sm:w-[3.5rem] rounded-full -bottom-4 sm:-bottom-5 z-10"
                 :class="{
                   '-right-4 sm:-right-6': index == 1,

@@ -167,7 +167,7 @@
                     type="text"
                     v-model="time"
                     class="w-full bg-[#2f0101] rounded-sm outline-none h-6 px-2 font-Rubik placeholder:font-Rubik font-semibold text-white"
-                    placeholder="Time"
+                    placeholder="Time: ex.(3m or 5h)"
                     @keyup.enter="
                       toggleDropdown('inventory_value'),
                         (selected_time = formated_selected_time(time)),
@@ -194,7 +194,7 @@
         </div>
         <!-- Controls End -->
         <!-- Items Selection Start -->
-        <div class="h-[15rem] lg:h-[21.4375rem] w-full relative">
+        <div class="h-[35.25rem] w-full relative">
           <div
             v-if="loadingInventory"
             class="absolute inset-0 z-20 flex items-center justify-center bg-[rgba(0,0,0,0.25)]"

@@ -3,7 +3,7 @@
     <img
       :src="user.avatar"
       alt="User Avatar"
-      class="object-cover w-[2.25rem] h-[2.25rem] min-h-[2.25rem] min-w-[2.25rem] rounded-[4px]"
+      class="object-cover w-[2.25rem] h-[2.25rem] min-h-[2.25rem] min-w-[2.25rem] rounded-[4px] border-[0.5px] border-solid border-white"
       loading="lazy"
     />
 

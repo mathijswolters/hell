@@ -44,7 +44,6 @@ function mapRawPlayerToBattlePlayer(raw, index, gameId) {
     value,
     items
   }
-  console.log('here is row in mapRawPlayerToBattlePlayer: ', row)
   return row
 }
 
@@ -263,7 +262,6 @@ export const store = createStore({
     // Mutation to update the entire battle data (e.g., after the coin flip results)
     updateBattle(state, { battleId, updatedBattle }) {
       const index = state.battles.findIndex((battle) => battle._id === battleId)
-      console.log('here is index in updateBattle: ', index, updatedBattle)
       if (index !== -1) {
         state.battles[index] = updatedBattle // Replace the battle object with updated data
       }
@@ -290,7 +288,6 @@ export const store = createStore({
 
     patchBattleById(state, { battleId, patch }) {
       if (battleId == null || !patch || typeof patch !== 'object') return
-      console.log('here is patch in patchBattleById: ', patch)
       const battle = state.battles.find((b) => battleIdMatches(b, battleId))
 
       if (!battle) return

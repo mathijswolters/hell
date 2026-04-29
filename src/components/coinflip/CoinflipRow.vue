@@ -19,7 +19,7 @@
         class="order-1 col-span-3 sm:col-span-2 lg:col-span-3 xl:col-span-2 flex items-center justify-center relative"
       >
         <div v-if="battle.players.length == 1" class="flex items-center gap-4">
-          <img :src="`/img/coins/${coinSideValue(battle.players[0].coin)}.png`" class="w-[2rem]" />
+          <img :src="`/src/assets/img/coins/${coinSideValue(battle.players[0].coin)}.png`" class="w-[2rem]" />
           <UserImage :user="battle.players[0]" />
         </div>
         <div v-else class="flex items-center gap-4 sm:gap-6">
@@ -30,9 +30,9 @@
             }"
           >
             <div
-              class="border-[2px] border-[#740c0a] rounded-full -right-3 w-[1.5rem] absolute z-10"
+              class="rounded-full -right-[0.6rem] w-[1.3rem] absolute z-10"
             >
-              <img :src="`/img/coins/${coinSideValue(battle.players[0].coin)}.png`" class="w-full h-full" />
+              <img :src="`/src/assets/img/coins/${coinSideValue(battle.players[0].coin)}.png`" class="w-full h-full" />
             </div>
 
             <UserImage :user="battle.players[0]" />
@@ -45,9 +45,9 @@
             }"
           >
             <div
-              class="border-[2px] border-[#740c0a] rounded-full -left-3 w-[1.5rem] absolute z-10"
+              class="rounded-full -left-[0.6rem] w-[1.3rem] absolute z-10"
             >
-              <img :src="`/img/coins/${coinSideValue(battle.players[1].coin)}.png`" class="w-full h-full" />
+              <img :src="`/src/assets/img/coins/${coinSideValue(battle.players[1].coin)}.png`" class="w-full h-full" />
             </div>
             <UserImage :user="battle.players[1]" />
           </div>
@@ -61,13 +61,13 @@
           v-for="item in battle.players[0].items"
           :key="item.id"
           :src="mapInventoryItem(item).image"
-          class="max-w-[3rem]"
+          class="max-w-[3rem] py-3"
         />
         <img
             v-for="item in battle.players[1]?.items || []"
             :key="item.id"
             :src="mapInventoryItem(item).image"
-            class="max-w-[3rem]"
+            class="max-w-[3rem] py-3"
           />
       </div>
       <div
@@ -129,12 +129,12 @@
         </button>
         <div v-if="isEnded" class="flex items-center gap-2">
           <img
-            :src="`/img/coins/${coinSideValue(battle.coin)}.png`"
+            :src="`/src/assets/img/coins/${coinSideValue(battle.coin)}.png`"
             class="w-[1.5rem]"
           />
           <img
             v-lazy="battle.winner?.avatar"
-            class="min-w-[2.25rem] min-h-[2.25rem] w-[2.25rem] h-[2.25rem] rounded-[4px] object-cover"
+            class="min-w-[2.25rem] min-h-[2.25rem] w-[2.25rem] h-[2.25rem] rounded-[4px] object-cover border-[0.5px] border-solid border-white"
           />
         </div>
         <button
