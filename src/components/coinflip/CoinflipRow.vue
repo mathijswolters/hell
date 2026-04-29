@@ -1,9 +1,19 @@
 <template>
   <div
-    class="lg:h-[68px] bg-[linear-gradient(90deg,rgba(255,52,53,0.5)_0%,rgba(255,52,53,0)_100%)] p-px 2-full flex items-center justify-center"
+    class="lg:h-[68px]  p-px 2-full flex items-center justify-center"
+    :class="
+      isPersonalCreatedBattle
+        ? ''
+        : 'bg-[linear-gradient(90deg,rgba(255,52,53,0.5)_0%,rgba(255,52,53,0)_100%)]'
+    "
   >
     <div
       class="bg-[linear-gradient(0deg,#5C0000,#5C0000),radial-gradient(32.08%_534.72%_at_0%_0%,rgba(255,52,53,0.2)_0%,rgba(255,52,53,0)_100%)] w-full h-full grid grid-cols-7 lg:grid-cols-[repeat(13,minmax(0,1fr))] gap-4 py-2 lg:py-0 px-2 lg:px-0"
+      :class="
+        isPersonalCreatedBattle
+          ? 'border-l-4 border-solid border-[#04AB53]'
+          : ''
+      "
     >
       <div
         class="order-1 col-span-3 sm:col-span-2 lg:col-span-3 xl:col-span-2 flex items-center justify-center relative"
@@ -146,6 +156,7 @@ import { mapActions } from 'vuex'
 import { openModal } from '@/modalStore'
 import UserImage from '../UserImage.vue'
 import { normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
+import { getSteamId } from '@/auth/session'
 export default {
   name: 'CoinflipRow',
   props: {
@@ -196,6 +207,18 @@ export default {
         this.battle.state !== 'joining' &&
         this.isLobbyPhase
       )
+    },
+    isPersonalCreatedBattle() {
+      const currentSteamId = String(getSteamId() || '')
+      if (!currentSteamId) return false
+      const hostSteamId = String(
+        this.battle?.host ??
+          this.battle?.host_data?.steamid ??
+          this.battle?.players?.[0]?.steamid ??
+          this.battle?.players?.[0]?._id ??
+          ''
+      )
+      return hostSteamId === currentSteamId
     },
     maxTime() {
       return this.isLobbyPhase ? 30 : 10

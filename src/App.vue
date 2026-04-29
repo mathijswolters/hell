@@ -20,9 +20,9 @@
             ref="scrollableContainer"
             class="flex-1 min-h-0 w-full overflow-y-auto flex justify-center"
           >
-            <div class="w-full max-w-full flex flex-col">
-              <RouterView class="w-full max-w-full" />
-              <Footer_component class="w-full shrink-0" />
+            <div class="w-full max-w-full flex min-h-full flex-col">
+              <RouterView class="w-full max-w-full flex-1" />
+              <Footer_component class="sticky bottom-0 z-20 w-full shrink-0" />
             </div>
           </div>
         </div>
