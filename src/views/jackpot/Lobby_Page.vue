@@ -1,6 +1,6 @@
 <template>
   <!-- Sidebar + main align from the left (matches classic layout: rail | game | chat). -->
-  <div class="w-full px-3 sm:px-4">
+  <div class="w-full px-[7rem] sm:px-[6rem]">
     <div
       class="flex flex-col xl:flex-row xl:justify-start xl:items-start gap-5 xl:gap-5 w-full"
     >
@@ -10,7 +10,7 @@
     >
       <!-- bigest 24h winner -->
       <div
-        class="w-full xl:w-[360px] h-fit py-2 md:py-4 xl:h-[266px] bg-gradient-to-b from-[#2e0101] to-[#530101] rounded flex md:flex-col gap-4 items-center md:justify-center relative px-4"
+        class="w-full xl:w-[360px] h-fit py-2 md:py-4 xl:h-[266px] bg-gradient-to-b from-[#2e0101] to-[#530101] rounded flex md:flex-col gap-4 items-center md:justify-center relative"
       >
         <div class="flex flex-col gap-y-4 items-center order-2 md:order-1">
           <div>

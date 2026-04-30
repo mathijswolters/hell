@@ -26,7 +26,7 @@
           <div
             class="relative flex items-center transition-opacity duration-200 order-1"
             :class="{
-              'opacity-40 ': battle.players[0].coin !== battle.winner?.coin && isEnded
+              'opacity-40': showRowWinner && !playerIsWinner(battle.players[0])
             }"
           >
             <div
@@ -41,7 +41,7 @@
           <div
             class="relative flex items-center transition-opacity duration-200 order-3"
             :class="{
-              'opacity-40': battle.players[1].coin !== battle.winner?.coin && isEnded
+              'opacity-40': showRowWinner && !playerIsWinner(battle.players[1])
             }"
           >
             <div
@@ -121,21 +121,26 @@
         <button
           v-if="showJoinButton"
           class="flex items-center px-3 h-9 bg-[#ff3435] border-[#530000] border border-solid font-bold font-Rubik text-white text-sm whitespace-nowrap"
-          @click="
-            openModal('join coinflip', { battle: this.battle, secondsLeft: this.secondsLeft })
-          "
+          @click="joinCoinflipOrLogin"
         >
           JOIN
         </button>
-        <div v-if="isEnded" class="flex items-center gap-2">
+        <div v-if="showRowWinner" class="flex items-center gap-2 shrink-0">
           <img
             :src="`/src/assets/img/coins/${coinSideValue(battle.coin)}.png`"
             class="w-[1.5rem]"
+            alt=""
           />
           <img
-            v-lazy="battle.winner?.avatar"
+            v-if="displayWinner?.avatar"
+            v-lazy="displayWinner.avatar"
             class="min-w-[2.25rem] min-h-[2.25rem] w-[2.25rem] h-[2.25rem] rounded-[4px] object-cover border-[0.5px] border-solid border-white"
+            alt=""
           />
+          <span
+            v-else-if="displayWinner?.name"
+            class="font-Rubik font-bold text-xs text-white max-w-[5rem] truncate"
+            >{{ displayWinner.name }}</span>
         </div>
         <button
           @click="openModal('coinflip game', { battle: battle, secondsLeft: secondsLeft })"
@@ -156,7 +161,11 @@ import { mapActions } from 'vuex'
 import { openModal } from '@/modalStore'
 import UserImage from '../UserImage.vue'
 import { normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
-import { getSteamId } from '@/auth/session'
+import { getSteamId, isLoggedIn } from '@/auth/session'
+
+const COINFLIP_DEPOSIT_COUNTDOWN_SEC = 25
+const COINFLIP_PRE_FLIP_COUNTDOWN_SEC = 15
+
 export default {
   name: 'CoinflipRow',
   props: {
@@ -172,6 +181,7 @@ export default {
   data() {
     return {
       secondsLeft: 0,
+      intervalId: null,
       activeModal: null,
       min: 0,
       max: 0
@@ -183,9 +193,46 @@ export default {
       const s = this.battle?.state
       return s === 'finished' || s === 'ended'
     },
+    hasFlipOutcome() {
+      const c = this.battle?.coin
+      if (c == null) return false
+      if (c === 1 || c === 2) return true
+      const s = String(c).trim().toLowerCase()
+      return s === '1' || s === '2' || s === 'heaven' || s === 'hell'
+    },
+    /** Matches lobby `getGameId` / `Game_Modal.flipBattleIdKey` for flip-animation Vuex flag. */
+    battleGameIdKey() {
+      const b = this.battle
+      return String(b?.gameid ?? b?.gameId ?? b?.id ?? b?._id ?? '')
+    },
+    coinflipModalFlipAnimatingThisBattle() {
+      const key = this.battleGameIdKey
+      if (!key) return false
+      return !!this.$store.state.coinflipModalFlipAnimatingIds[key]
+    },
+    /** Hide lobby winner strip while `Game_Modal` is running the coin flip for this game. */
+    showRowWinner() {
+      return this.isEnded && this.hasFlipOutcome && !this.coinflipModalFlipAnimatingThisBattle
+    },
+    displayWinner() {
+      if (!this.isEnded) return null
+      const players = Array.isArray(this.battle?.players) ? this.battle.players : []
+      const w = this.battle?.winner
+      if (w && (w.avatar || w.name || w.steamid)) return w
+      if (this.hasFlipOutcome && players.length) {
+        const side = this.coinSideValue(this.battle.coin)
+        const byCoin = players.find((p) => this.coinSideValue(p?.coin) === side)
+        if (byCoin) return byCoin
+      }
+      return players.find((p) => p?.win === true) || null
+    },
     isLobbyPhase() {
       const s = this.battle?.state
       return s === 'open' || s === 'created' || s === 'joining'
+    },
+    isDepositAcceptPhase() {
+      const s = this.battle?.state
+      return s === 'joining' || !!this.battle?.joining
     },
     isPassedTime() {
       if (!this.battle.server_time || this.battle.server_time > ( this.battle.hosted + 30 )) {
@@ -198,7 +245,10 @@ export default {
       return s === 'joined' || s === 'ending' || s === 'in_progress'
     },
     showCountdownRing() {
-      return this.isLobbyPhase || (this.isGreenPhase && this.secondsLeft > 0)
+      return (
+        (this.isDepositAcceptPhase && this.secondsLeft > 0) ||
+        (this.isGreenPhase && this.secondsLeft > 0)
+      )
     },
     showJoinButton() {
       return (
@@ -221,7 +271,9 @@ export default {
       return hostSteamId === currentSteamId
     },
     maxTime() {
-      return this.isLobbyPhase ? 30 : 10
+      if (this.isDepositAcceptPhase) return COINFLIP_DEPOSIT_COUNTDOWN_SEC
+      if (this.isGreenPhase) return COINFLIP_PRE_FLIP_COUNTDOWN_SEC
+      return COINFLIP_DEPOSIT_COUNTDOWN_SEC
     }
 
     // inBattle: function () {
@@ -233,7 +285,25 @@ export default {
   methods: {
     ...mapActions(['updateBattle', 'updateBattleState', 'updatePlayerResult', 'removeBattle']),
     coinSideValue(coin) {
-      return coin === 2 ? 'hell' : 'heaven'
+      if (coin === 2 || coin === '2') return 'hell'
+      const normalized = String(coin || '')
+        .trim()
+        .toLowerCase()
+      if (normalized === 'hell') return 'hell'
+      return 'heaven'
+    },
+    playerIsWinner(player) {
+      if (!this.isEnded || !this.hasFlipOutcome || !player) return false
+      const dw = this.displayWinner
+      if (dw) {
+        const da = String(dw.steamid ?? dw._id ?? '')
+        const pa = String(player.steamid ?? player._id ?? '')
+        if (da && pa) return da === pa
+      }
+      if (this.hasFlipOutcome) {
+        return this.coinSideValue(player?.coin) === this.coinSideValue(this.battle?.coin)
+      }
+      return !!player?.win
     },
     mapInventoryItem(item, index = 0) {
       return {
@@ -250,6 +320,14 @@ export default {
     // },
     openModal(name, props) {
       openModal(name, props)
+    },
+    joinCoinflipOrLogin() {
+      if (!isLoggedIn()) {
+        const path = this.$route?.fullPath || '/coinflip'
+        openModal('login', { redirectTo: path.startsWith('/') ? path : '/coinflip' })
+        return
+      }
+      openModal('join coinflip', { battle: this.battle, secondsLeft: this.secondsLeft })
     },
     calculateMinMaxNeed() {
       let total = this.battle.total
@@ -287,8 +365,7 @@ export default {
     },
     restartCountdown(startingTime) {
       this.stopCountdown()
-      this.secondsLeft = startingTime
-      this.startCountdown()
+      this.startCountdown(startingTime)
     },
     stopCountdown() {
       if (this.intervalId) {
@@ -296,10 +373,16 @@ export default {
         this.intervalId = null
       }
     },
-    startCountdown() {
+    /**
+     * @param {number | undefined} presetSeconds When set (e.g. from `restartCountdown`), use this
+     *   instead of `maxTime` so the ring matches the active phase (deposit vs pre-flip).
+     */
+    startCountdown(presetSeconds) {
       if (this.intervalId) return
       if (this.isEnded) {
         this.secondsLeft = this.time
+      } else if (presetSeconds != null && Number.isFinite(Number(presetSeconds))) {
+        this.secondsLeft = Math.max(0, Math.floor(Number(presetSeconds)))
       } else {
         this.secondsLeft = this.maxTime
       }
@@ -331,8 +414,17 @@ export default {
     }
   },
   mounted() {
-    this.startCountdown()
     this.calculateMinMaxNeed()
+    if (this.isEnded) {
+      this.restartCountdown(this.time)
+    } else if (this.isDepositAcceptPhase) {
+      this.restartCountdown(COINFLIP_DEPOSIT_COUNTDOWN_SEC)
+    } else if (this.isGreenPhase) {
+      this.restartCountdown(COINFLIP_PRE_FLIP_COUNTDOWN_SEC)
+    } else {
+      this.stopCountdown()
+      this.secondsLeft = 0
+    }
   },
   beforeUnmount() {
     this.stopCountdown()
@@ -340,9 +432,12 @@ export default {
   watch: {
     'battle.state'(newState) {
       if (newState === 'joined' || newState === 'ending' || newState === 'in_progress') {
-        this.restartCountdown(10)
-      } else if (newState === 'open' || newState === 'created' || newState === 'joining') {
-        this.restartCountdown(30)
+        this.restartCountdown(COINFLIP_PRE_FLIP_COUNTDOWN_SEC)
+      } else if (newState === 'joining') {
+        this.restartCountdown(COINFLIP_DEPOSIT_COUNTDOWN_SEC)
+      } else if (newState === 'open' || newState === 'created') {
+        this.stopCountdown()
+        this.secondsLeft = 0
       } else if (newState === 'finished' || newState === 'ended') {
         this.restartCountdown(this.time)
       } else {

@@ -234,7 +234,12 @@ export const store = createStore({
       time: 2
     },
     /** Latest pot total for NavBar; updated via `jackpot:${potid}:valueUpdate` (global io.emit). */
-    jackpotNavTotal: null
+    jackpotNavTotal: null,
+    /**
+     * Game ids where `Game_Modal` is currently running the coin flip animation.
+     * `CoinflipRow` hides the winner strip while true so the lobby does not spoil the modal.
+     */
+    coinflipModalFlipAnimatingIds: {}
   },
   mutations: {
     setServerTime(state, value) {
@@ -284,6 +289,23 @@ export const store = createStore({
       } else {
         state.battles[idx] = normalized
       }
+    },
+
+    coinflipModalFlipAnimatingSet(state, battleId) {
+      const key = String(battleId ?? '')
+      if (!key) return
+      state.coinflipModalFlipAnimatingIds = {
+        ...state.coinflipModalFlipAnimatingIds,
+        [key]: true
+      }
+    },
+    coinflipModalFlipAnimatingClear(state, battleId) {
+      const key = String(battleId ?? '')
+      if (!key) return
+      if (!state.coinflipModalFlipAnimatingIds[key]) return
+      const next = { ...state.coinflipModalFlipAnimatingIds }
+      delete next[key]
+      state.coinflipModalFlipAnimatingIds = next
     },
 
     patchBattleById(state, { battleId, patch }) {

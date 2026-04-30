@@ -310,7 +310,7 @@
             <button
               v-if="signedIn"
               class="bg-[#04ab53] w-full sm:w-[162px] h-[40px] font-Rubik text-white font-extrabold text-base"
-              @click="openModal('join coinflip', { battle: battle, secondsLeft: localSecondsLeft })"
+              @click="openJoinCoinflipFromGameModal"
             >
               JOIN
             </button>
@@ -323,7 +323,7 @@
               >
               <button
                 class="bg-[#04ab53] px-2 sm:px-4 h-[40px] font-Rubik text-white font-extrabold text-xs flex items-center gap-x-2"
-                @click="goToLogin()"
+                @click="openLoginModal()"
               >
                 <img class="w-[22px]" src="../../assets/icons/steam.png" />
                 LOG IN WITH STEAM
@@ -347,7 +347,6 @@ import ConfettiGenerator from 'confetti-js'
 import { mapActions } from 'vuex'
 import { authVersion, isLoggedIn } from '@/auth/session'
 import { openModalFromModal } from '@/modalStore'
-import { startSteamOAuth } from '@/auth/steamLogin'
 import { normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
 import B2B_SPRITE from '@/assets/img/B2B sprite_q.png'
 import B2B2_SPRITE from '@/assets/img/B2B2 sprite_q.png'
@@ -357,6 +356,14 @@ import B2R_SPRITE from '@/assets/img/B2R sprite_q.png'
 import B2R2_SPRITE from '@/assets/img/B2R2 sprite_q.png'
 import R2R_SPRITE from '@/assets/img/R2R sprite_q.png'
 import R2R2_SPRITE from '@/assets/img/R2R2 sprite_q.png'
+
+/** Deposit trade acceptance window after `coinflip:joining`. */
+const COINFLIP_DEPOSIT_COUNTDOWN_SEC = 25
+/** Countdown after both players are in until the flip (green ring). */
+const COINFLIP_PRE_FLIP_COUNTDOWN_SEC = 15
+/** Must match `.coin-sprite.animate` duration in this component’s styles. */
+const COINFLIP_MODAL_FLIP_ANIM_MS = 5000
+
 export default {
   name: 'coinFlip_Battle',
   props: {
@@ -368,7 +375,7 @@ export default {
     secondsLeft: {
       type: Number,
       required: false,
-      default: 10
+      default: 0
     }
   },
   components: { XMarkIcon, CircleProgressBar },
@@ -390,7 +397,7 @@ export default {
   },
   watch: {
     localSecondsLeft(newState) {
-      if (this.isLobbyPhase && newState == 0) {
+      if (this.isDepositAcceptPhase && newState == 0) {
         setTimeout(() => {
           if (this.isFlipping == false) {
             // this.removeBattle(this.battle._id)
@@ -400,15 +407,16 @@ export default {
     },
     'battle.state'(newState) {
       if (newState === 'joined' || newState === 'ending' || newState === 'in_progress') {
-        this.startCountdown(15)
-      } else if (newState === 'open' || newState === 'created' || newState === 'joining') {
-        this.startCountdown(25)
-      } else if (
-        (newState === 'ended' || newState === 'finished') &&
-        this.hasFlipResultData &&
-        !this.hasAnimatedFlipResult
-      ) {
-        this.flipCoin()
+        this.startCountdown(COINFLIP_PRE_FLIP_COUNTDOWN_SEC)
+      } else if (newState === 'joining') {
+        this.startCountdown(COINFLIP_DEPOSIT_COUNTDOWN_SEC)
+      } else if (newState === 'open' || newState === 'created') {
+        this.clearCountdown()
+      } else if (newState === 'ended' || newState === 'finished') {
+        this.clearCountdown()
+        if (this.hasFlipResultData && !this.hasAnimatedFlipResult) {
+          this.flipCoin()
+        }
       }
     },
     hasFlipResultData(newValue) {
@@ -475,9 +483,16 @@ export default {
     openModal(name, props) {
       openModalFromModal(name, props)
     },
-    goToLogin() {
-      this.closeModal()
-      startSteamOAuth(this.$route.fullPath)
+    openLoginModal() {
+      const path = this.$route?.fullPath || '/coinflip'
+      openModalFromModal('login', { redirectTo: path.startsWith('/') ? path : '/coinflip' })
+    },
+    openJoinCoinflipFromGameModal() {
+      if (!isLoggedIn()) {
+        this.openLoginModal()
+        return
+      }
+      this.openModal('join coinflip', { battle: this.battle, secondsLeft: this.localSecondsLeft })
     },
     join() {
       this.$emit('joinPlayer')
@@ -518,6 +533,11 @@ export default {
 
       // Hide proof/winner info until the animation's final timeout completes.
       this.hasAnimatedFlipResult = false
+
+      const flipKey = this.flipBattleIdKey
+      if (flipKey) {
+        this.$store.commit('coinflipModalFlipAnimatingSet', flipKey)
+      }
 
       const updatedBattle = { ...this.battle }
       updatedBattle.state = 'joined'
@@ -562,7 +582,10 @@ export default {
         // Reveal proof/winner UI only after the flip animation finishes.
         this.hasAnimatedFlipResult = true
         this.isFlipping = false
-      }, 5000)
+        if (flipKey) {
+          this.$store.commit('coinflipModalFlipAnimatingClear', flipKey)
+        }
+      }, COINFLIP_MODAL_FLIP_ANIM_MS)
     },
     winnerModal() {
       this.$emit('winnerModal')
@@ -581,9 +604,14 @@ export default {
       }, 1000)
     },
     handleCountdownEnd() {
-      if (this.isLobbyPhase) {
-        console.log('Countdown ended: lobby / join-wait phase expired.')
+      if (this.isDepositAcceptPhase) {
+        console.log('Countdown ended: deposit acceptance window expired.')
       }
+    },
+    clearCountdown() {
+      clearInterval(this.countdownInterval)
+      this.countdownInterval = null
+      this.localSecondsLeft = 0
     },
     updateScreenWidth() {
       this.screenWidth = window.innerWidth
@@ -612,16 +640,20 @@ export default {
       const s = this.battle?.state
       return s === 'finished' || s === 'ended'
     },
-    isLobbyPhase() {
+    /** Someone is locking in / accepting the Steam deposit for the join. */
+    isDepositAcceptPhase() {
       const s = this.battle?.state
-      return s === 'open' || s === 'created' || s === 'joining'
+      return s === 'joining' || !!this.battle?.joining
     },
     isGreenPhase() {
       const s = this.battle?.state
       return s === 'joined' || s === 'ending' || s === 'in_progress'
     },
     showCountdownRing() {
-      return this.isLobbyPhase || (this.isGreenPhase && this.localSecondsLeft > 0)
+      return (
+        (this.isDepositAcceptPhase && this.localSecondsLeft > 0) ||
+        (this.isGreenPhase && this.localSecondsLeft > 0)
+      )
     },
     hasFlipResultData() {
       const hasCoin = this.battle?.coin === 1 || this.battle?.coin === 2
@@ -630,11 +662,18 @@ export default {
       return hasCoin && hasResultMeta
     },
     countdownMax() {
-      return this.isLobbyPhase ? 30 : 10
+      if (this.isDepositAcceptPhase) return COINFLIP_DEPOSIT_COUNTDOWN_SEC
+      if (this.isGreenPhase) return COINFLIP_PRE_FLIP_COUNTDOWN_SEC
+      return COINFLIP_DEPOSIT_COUNTDOWN_SEC
     },
     signedIn() {
       authVersion.value
       return isLoggedIn()
+    },
+    /** Same id resolution as lobby `getGameId` / `CoinflipRow` for Vuex flip-animation flag. */
+    flipBattleIdKey() {
+      const b = this.battle
+      return String(b?.gameid ?? b?.gameId ?? b?.id ?? b?._id ?? '')
     }
   },
   mounted() {
@@ -642,12 +681,21 @@ export default {
     // show the proof immediately (no flip animation needed).
     this.hasAnimatedFlipResult = this.isEnded && this.hasFlipResultData
     this.pickRandomCoinSprite(this.coinSideValue(this.battle?.coin))
-    let initial = 15
-    this.startCountdown(initial)
+    if (this.isDepositAcceptPhase) {
+      this.startCountdown(COINFLIP_DEPOSIT_COUNTDOWN_SEC)
+    } else if (this.isGreenPhase && !this.isEnded) {
+      this.startCountdown(COINFLIP_PRE_FLIP_COUNTDOWN_SEC)
+    } else {
+      this.clearCountdown()
+    }
     window.addEventListener('resize', this.updateScreenWidth)
   },
   beforeUnmount() {
-    clearInterval(this.countdownInterval)
+    this.clearCountdown()
+    if (this.isFlipping) {
+      const k = this.flipBattleIdKey
+      if (k) this.$store.commit('coinflipModalFlipAnimatingClear', k)
+    }
     if (this.confetti) {
       this.confetti.clear()
     }

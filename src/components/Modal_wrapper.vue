@@ -15,7 +15,7 @@
         leave-from-class="opacity-100 scale-100"
         leave-to-class="opacity-0 scale-95"
       >
-        <div v-if="modalComponent" class="pt-2 max-h-full backdrop-blur-3xl">
+        <div v-if="modalComponent" class="max-h-full backdrop-blur-3xl">
           <component
             :is="modalComponent"
             v-bind="modalProps"

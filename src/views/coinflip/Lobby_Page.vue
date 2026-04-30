@@ -1,6 +1,6 @@
 <template>
   <div
-    class="w-full min-w-0 max-w-full overflow-hidden lg:overflow-visible flex flex-col items-stretch gap-[1rem] px-3 sm:px-4"
+    class="w-full min-w-0 max-w-full overflow-hidden lg:overflow-visible flex flex-col items-stretch gap-[1rem] px-[7rem] sm:px-[6rem]"
   >
     <!-- Header Start -->
 
@@ -874,7 +874,7 @@ export default {
       )
       if (currentSteamId !== hostSteamId && currentSteamId !== joinerSteamId) return
       this.autoOpenedCoinflipGames.add(gameKey)
-      openModal('coinflip game', { battle, secondsLeft: 10 })
+      openModal('coinflip game', { battle, secondsLeft: 15 })
     }
   },
   beforeUnmount() {

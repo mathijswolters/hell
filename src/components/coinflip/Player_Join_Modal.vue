@@ -165,7 +165,7 @@
           <template v-else>
             <div
               v-if="filteredItems.length >= 24"
-              class="absolute h-10 bottom-0 z-10 w-full ml-4 max-w-[calc(100%-32px)] opacity-90 bg-[linear-gradient(180deg,rgba(83,1,1,0)_20%,#530101_100%)]"
+              class="absolute h-10 bottom-0 z-10 w-full ml-4 max-w-[calc(100%-32px)] opacity-90"
             ></div>
             <div
               class="overflow-y-auto grid w-full py-2 justify-center gap-x-1 gap-y-1 px-2 relative max-h-full"
