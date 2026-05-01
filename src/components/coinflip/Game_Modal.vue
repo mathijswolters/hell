@@ -1,10 +1,11 @@
 <template>
   <div>
-    <canvas
-      ref="confetti"
-      class="fixed left-0 top-0 w-full h-full -z-10"
-      @click="closeModal"
-    ></canvas>
+    <teleport to="body">
+      <canvas
+        ref="confetti"
+        class="fixed inset-0 w-screen h-screen z-[9999] pointer-events-none"
+      ></canvas>
+    </teleport>
     <div
       class="relative lg:min-w-[57rem] w-[96vw] lg:max-w-[57rem] flex-col transform transition-all bg-[linear-gradient(180deg,rgba(83,0,0,0.8)_0%,rgba(46,1,1,0.8)_100%)] backdrop-blur-[200px] h-full"
     >
@@ -533,8 +534,8 @@ export default {
         ],
         clock: 25,
         rotate: true,
-        width: this.$refs.confetti.offsetWidth,
-        height: this.$refs.confetti.offsetHeight,
+        width: window.innerWidth,
+        height: window.innerHeight,
         respawn: true,
         start_from_edge: true
       }
