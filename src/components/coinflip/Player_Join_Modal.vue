@@ -360,12 +360,18 @@ export default {
           amount: Number(item.amount) > 0 ? Number(item.amount) : 1
         }))
         const result = await joinCoinflip({ steamid, skins, gameid })
-        // store.commit('upsertCoinflipGame', {
-        //   ...(result || {}),
-        //   gameid: result?.gameid ?? result?.gameId ?? result?.id ?? result?._id ?? gameid
-        // })
         const offerUrl = this.resolveSteamOfferUrl(result)
         if (offerUrl) {
+          // Reflect join state immediately from `/coinflip/join` response.
+          // Socket events will still reconcile the final state.
+          store.commit('patchBattleById', {
+            battleId: gameid,
+            patch: {
+              joining: true,
+              state: 'joining',
+              joinOfferUrl: offerUrl
+            }
+          })
           openModalFromModal('steam offer', { offerUrl })
           return
         }

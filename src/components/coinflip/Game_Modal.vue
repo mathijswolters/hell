@@ -139,7 +139,7 @@
         <!-- Users and game Start -->
         <div class="flex items-start justify-between sm:justify-center sm:w-full sm:gap-x-20">
           <div
-            v-if="battle.players.length == 1"
+            v-if="battle.players.length == 1 && !joiningPreviewPlayer"
             class="w-[140px] sm:w-[9.25rem] sm:h-[9.25rem] order-3"
           ></div>
           <div
@@ -176,8 +176,30 @@
             </div>
           </div>
           <div
+            v-if="joiningPreviewPlayer"
+            class="order-3 pr-3 flex flex-col gap-y-4 justify-center items-center transition-opacity duration-[1000ms] w-[140px] sm:w-[9.25rem]"
+          >
+            <div
+              class="w-[76.85px] h-[76.85px] sm:w-[9.25rem] sm:h-[9.25rem] rounded-[4px] flex items-center justify-center relative"
+            >
+              <img
+                v-lazy="joiningPreviewPlayer.avatar"
+                class="w-[76.85px] h-[76.85px] sm:w-[9.25rem] sm:h-[9.25rem] rounded-[4px] object-cover border-[0.5px] border-solid border-white"
+              />
+              <img
+                :src="`/src/assets/img/coins/${coinSideValue(joiningPreviewPlayer.coin)}.png`"
+                class="absolute sm:max-w-[3.5rem] w-9 sm:w-[3.5rem] rounded-full -bottom-4 sm:-bottom-5 z-10 -right-4 sm:-right-6"
+              />
+            </div>
+            <div
+              class="font-Rubik text-white font-extrabold text-sm sm:text-base whitespace-nowrap truncate w-full text-center"
+            >
+              {{ joiningPreviewPlayer.name }}
+            </div>
+          </div>
+          <div
             class="order-2 flex flex-col gap-y-4 h-full justify-center relative"
-            :class="{ 'sm:ml-12': battle.players.length == 1 }"
+            :class="{ 'sm:ml-12': battle.players.length == 1 && !joiningPreviewPlayer }"
           >
             <CircleProgressBar
               v-if="showCountdownRing"
@@ -230,11 +252,11 @@
                     'text-[#FF4444]': battle.coin === 2
                   }"
                 >
-                  Ticket: {{ battle.ticket }}
+                  Ticket: {{ Number(battle.ticket).toFixed(6) }}
                 </span>
               </transition>
               <span v-if="hasAnimatedFlipResult" class="font-Rubik font-medium text-sm text-[#d7b7b7]">
-                Hash: {{ battle.hash }}
+                Hash: {{ shorten(battle.hash) }}
               </span>
               <span
                 v-if="hasAnimatedFlipResult && battle.block != null"
@@ -307,8 +329,34 @@
             </div>
           </div>
           <div v-if="battle.players.length == 1" class="flex justify-center order-2">
+            <div v-if="isDepositAcceptPhase" class="flex w-full flex-col gap-y-[2rem] max-w-[402px] h-fit items-center justify-center">
+              <span class="font-Rubik text-sm sm:text-base text-white font-bold">User Joining</span>
+              <div v-if="signedIn && joiningOfferUrl" class="flex w-full flex-col gap-y-3 bg-[#690405] py-4 px-3 items-center justify-center">
+                <div class="font-Rubik text-white font-bold text-base text-center">Offer is active</div>
+              <!-- <div class="font-Rubik text-white font-semibold text-xs text-center break-all">
+                <span class="text-[#FF3435] font-semibold">Reference:</span>
+                {{ joiningOfferReference }}
+                <span class="text-[#FF3435] font-semibold ml-1">Security code:</span>
+                {{ joiningOfferSecurityCode }}
+              </div> -->
+              <a
+                v-if="signedIn && joiningOfferUrl"
+                :href="joiningOfferUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="w-2/3 bg-[#04ab53] flex items-center justify-center h-10 gap-2 font-Rubik font-extrabold text-white text-xs rounded-[2px]"
+              >
+                <img src="../../assets/icons/chrome.png" />
+                OPEN IN BROWSER
+              </a>
+              <div class="font-Rubik text-white font-medium text-xs text-center max-w-[30rem]">
+                Always use the links we provide to you or check the security code of your trade offer
+                to defend against fake bots or scammers
+              </div>
+              </div>
+            </div>
             <button
-              v-if="signedIn"
+              v-else-if="signedIn"
               class="bg-[#04ab53] w-full sm:w-[162px] h-[40px] font-Rubik text-white font-extrabold text-base"
               @click="openJoinCoinflipFromGameModal"
             >
@@ -434,6 +482,14 @@ export default {
       if (normalized === 'hell') return 'hell'
       return 'heaven'
     },
+    ticketNumberShorten(str, start = 5, end = 5) {
+      if (str.length <= start + end) return str;
+      return str.slice(0, start) + '...' + str.slice(-end);
+    },
+    shorten(str, start = 10, end = 8) {
+      if (str.length <= start + end) return str;
+      return str.slice(0, start) + '...' + str.slice(-end);
+    },
     pickRandomCoinSprite(side) {
       const pool = side === 'hell' ? this.hellCoinSprites : this.heavenCoinSprites
       if (!Array.isArray(pool) || pool.length === 0) return
@@ -488,6 +544,7 @@ export default {
       openModalFromModal('login', { redirectTo: path.startsWith('/') ? path : '/coinflip' })
     },
     openJoinCoinflipFromGameModal() {
+      if (this.isDepositAcceptPhase) return
       if (!isLoggedIn()) {
         this.openLoginModal()
         return
@@ -640,6 +697,18 @@ export default {
       const s = this.battle?.state
       return s === 'finished' || s === 'ended'
     },
+    joiningPreviewPlayer() {
+      if (!this.isDepositAcceptPhase) return null
+      if ((this.battle?.players?.length || 0) > 1) return null
+      const hostCoin = this.battle?.players?.[0]?.coin
+      const part = this.battle?.part_data || {}
+      const fallbackCoin = this.coinSideValue(hostCoin) === 'hell' ? 1 : 2
+      return {
+        name: part?.name || 'User',
+        avatar: part?.avatar || '/img/user/userImage.png',
+        coin: part?.coin ?? fallbackCoin
+      }
+    },
     /** Someone is locking in / accepting the Steam deposit for the join. */
     isDepositAcceptPhase() {
       const s = this.battle?.state
@@ -669,6 +738,108 @@ export default {
     signedIn() {
       authVersion.value
       return isLoggedIn()
+    },
+    joiningUserName() {
+      const b = this.battle || {}
+      return (
+        b?.part_data?.name ||
+        b?.players?.[1]?.name ||
+        'User'
+      )
+    },
+    joiningUserAvatar() {
+      const b = this.battle || {}
+      return (
+        b?.part_data?.avatar ||
+        b?.players?.[1]?.avatar ||
+        '/img/user/userImage.png'
+      )
+    },
+    joiningOfferUrl() {
+      const b = this.battle || {}
+      const part = b.part_data || {}
+      const candidates = [
+        b.joinOfferUrl,
+        b.offerUrl,
+        b.offer_url,
+        b.tradeOfferUrl,
+        b.trade_offer_url,
+        b.offer?.url,
+        part.offerUrl,
+        part.offer_url,
+        part.tradeOfferUrl,
+        part.trade_offer_url,
+        part.offer?.url
+      ]
+      for (const v of candidates) {
+        const s = typeof v === 'string' ? v.trim() : ''
+        if (s && /^https?:\/\//i.test(s)) return s
+      }
+      const offerIdCandidates = [
+        b.offerid,
+        b.offer_id,
+        b.tradeOfferId,
+        b.offer?.id,
+        part.offerid,
+        part.offer_id,
+        part.tradeOfferId,
+        part.offer?.id
+      ]
+      for (const v of offerIdCandidates) {
+        if (v == null) continue
+        const id = String(v).trim()
+        if (!id) continue
+        return `https://steamcommunity.com/tradeoffer/${encodeURIComponent(id)}/`
+      }
+      return ''
+    },
+    joiningOfferReference() {
+      const b = this.battle || {}
+      const part = b.part_data || {}
+      const candidates = [
+        b.offerReference,
+        b.offer_reference,
+        b.reference,
+        b.ref,
+        part.offerReference,
+        part.offer_reference,
+        part.reference,
+        part.ref
+      ]
+      for (const v of candidates) {
+        const s = typeof v === 'string' ? v.trim() : ''
+        if (s) return s
+      }
+      const offerUrl = this.joiningOfferUrl
+      if (offerUrl) {
+        const m = offerUrl.match(/\/tradeoffer\/([^/?#]+)/i)
+        if (m?.[1]) return decodeURIComponent(m[1])
+      }
+      return '--'
+    },
+    joiningOfferSecurityCode() {
+      const b = this.battle || {}
+      const part = b.part_data || {}
+      const candidates = [
+        b.securityCode,
+        b.security_code,
+        b.code,
+        part.securityCode,
+        part.security_code,
+        part.code
+      ]
+      for (const v of candidates) {
+        const s = typeof v === 'string' ? v.trim() : ''
+        if (s) return s
+      }
+      const offerUrl = this.joiningOfferUrl
+      if (!offerUrl) return '--'
+      try {
+        const u = new URL(offerUrl)
+        const token = u.searchParams.get('token')
+        if (token && token.trim()) return token.trim()
+      } catch (_) {}
+      return '--'
     },
     /** Same id resolution as lobby `getGameId` / `CoinflipRow` for Vuex flip-animation flag. */
     flipBattleIdKey() {

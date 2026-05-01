@@ -658,24 +658,19 @@ export default {
       }
     },
     connectCoinflipSocket() {
-      console.log('==========connectCoinflipSocket==========')
       if (this.socket || !isSocketEnabled()) return
       this.socket = getSharedJackpotSocket()
-      console.log('==========this.socket==========', this.socket)
 
       if (!this.socket) return
       const subscribe = () => {
         // Required so server `io.to(coinflip).emit('coinflip:hosted', …)` reaches this socket (same room name).
         joinCoinflipSocketRoom(this.socket)
         this.socket.emit('coinflip:subscribe', (payload) => {
-          console.log('==========subscribe payload==========', payload)
           this.applyCoinflipSubscribePayload(payload)
         })
       }
       this.coinflipSocketHandlers = {
         connect: () => {
-          console.log('==========connect==========')
-          console.log('==========this.socket==========', this.socket)
           subscribe()
         },
         subscribe: (payload) => {
@@ -714,6 +709,23 @@ export default {
               chance: Number(payload.host_chance)
             }
           }
+          const offerUrl =
+            payload?.offerUrl ??
+            payload?.offer_url ??
+            payload?.tradeOfferUrl ??
+            payload?.trade_offer_url ??
+            payload?.offer?.url
+          if (typeof offerUrl === 'string' && /^https?:\/\//i.test(offerUrl.trim())) {
+            patch.joinOfferUrl = offerUrl.trim()
+          }
+          const offerId =
+            payload?.offerid ??
+            payload?.offer_id ??
+            payload?.tradeOfferId ??
+            payload?.offer?.id
+          if (offerId != null && String(offerId).trim()) {
+            patch.joinOfferUrl = `https://steamcommunity.com/tradeoffer/${encodeURIComponent(String(offerId).trim())}/`
+          }
 
           this.$store.commit('patchBattleById', { battleId: gid, patch })
         },
@@ -738,7 +750,8 @@ export default {
               players,
               total: nextTotal,
               state: payload.state ?? 'joined',
-              joining: false
+              joining: false,
+              joinOfferUrl: null
             }
           })
           const nextBattle = this.battles.find((b) => String(this.getGameId(b)) === String(gid))
@@ -757,7 +770,7 @@ export default {
           if (gid == null) return
           this.$store.commit('patchBattleById', {
             battleId: gid,
-            patch: { joining: false, joinPartData: null, state: payload?.state ?? 'open' }
+            patch: { joining: false, joinPartData: null, state: payload?.state ?? 'open', joinOfferUrl: null }
           })
         },
         eosBlock: (payload) => {
