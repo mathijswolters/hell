@@ -141,7 +141,7 @@
             </button>
             <button
               class="flex items-center px-2 sm:px-6 h-10 bg-[#04AB53] font-bold font-Rubik text-white text-sm sm:text-base whitespace-nowrap tracking-wide"
-              @click="openModal('create coinflip')"
+              @click="openCreateCoinflipWithTradeUrlGate"
             >
               CREATE NEW
             </button>
@@ -260,7 +260,7 @@
             </button>
             <button
               class="flex items-center w-full px-2 sm:px-6 h-10 bg-[#04AB53] font-bold font-Rubik text-white text-sm sm:text-base whitespace-nowrap tracking-wide justify-center"
-              @click="openModal('create coinflip')"
+              @click="openCreateCoinflipWithTradeUrlGate"
             >
               CREATE NEW
             </button>
@@ -438,6 +438,7 @@ import { mapState } from 'vuex'
 import Tournament_bracket from '@/components/coinflip/Tournament_bracket.vue'
 import { openModal } from '@/modalStore'
 import {
+  getTradeURLStatus,
   getSharedJackpotSocket,
   getCoinflips,
   isSocketEnabled,
@@ -559,6 +560,27 @@ export default {
     }
   },
   methods: {
+    async openCreateCoinflipWithTradeUrlGate() {
+      const steamid = getSteamId()
+      if (!steamid) {
+        const path = this.$route?.fullPath || '/coinflip'
+        openModal('login', { redirectTo: path.startsWith('/') ? path : '/coinflip' })
+        return
+      }
+      try {
+        const status = await getTradeURLStatus({ steamid })
+        if (status.isRegistered) {
+          openModal('create coinflip')
+          return
+        }
+      } catch (error) {
+        this.$toaster?.error?.(error?.message || 'Could not validate Steam trade URL.')
+        return
+      }
+      openModal('trade url required', {
+        onSaved: () => this.openCreateCoinflipWithTradeUrlGate()
+      })
+    },
     getGameId(game) {
       return game?.gameid ?? game?.gameId ?? game?.id ?? game?._id ?? null
     },

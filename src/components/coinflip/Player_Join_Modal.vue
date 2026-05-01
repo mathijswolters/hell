@@ -263,7 +263,12 @@
 <script>
 import { XMarkIcon, MagnifyingGlassIcon, ChevronDownIcon } from '@heroicons/vue/24/solid'
 import { getSteamId } from '@/auth/session'
-import { joinCoinflip, loadInventory, normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
+import {
+  getTradeURLStatus,
+  joinCoinflip,
+  loadInventory,
+  normalizeSteamEconomyImageUrl
+} from '@/services/jackpotClient'
 import { openModalFromModal } from '@/modalStore'
 import { store } from '@/store'
 
@@ -297,6 +302,34 @@ export default {
     }
   },
   methods: {
+    openTradeUrlRequiredModal() {
+      openModalFromModal('trade url required', {
+        onSaved: async () => {
+          const steamid = getSteamId()
+          const ok = await this.verifyTradeUrlBeforeInventory(steamid, false)
+          if (ok) {
+            await this.fetchInventory()
+          }
+        }
+      })
+    },
+    async verifyTradeUrlBeforeInventory(steamid, openPrompt = true) {
+      if (!steamid) {
+        return false
+      }
+      try {
+        const status = await getTradeURLStatus({ steamid })
+        const isRegistered = !!status.isRegistered
+        if (!isRegistered && openPrompt) {
+          this.closeModal()
+          this.openTradeUrlRequiredModal()
+        }
+        return isRegistered
+      } catch (error) {
+        this.$toaster?.error?.(error?.message || 'Could not validate Steam trade URL.')
+        return false
+      }
+    },
     mapInventoryItem(item, index = 0) {
       return {
         ...item,
@@ -341,6 +374,12 @@ export default {
       }
       return ''
     },
+    async ensureTradeUrlRegistered(steamid) {
+      const ok = await this.verifyTradeUrlBeforeInventory(steamid, false)
+      if (ok) return true
+      this.openTradeUrlRequiredModal()
+      return false
+    },
     async submitJoinCoinflip() {
       if (!this.joinable || this.joiningSubmit) return
       const steamid = getSteamId()
@@ -348,6 +387,8 @@ export default {
         this.$toaster?.error?.('Please login first.')
         return
       }
+      const canProceed = await this.ensureTradeUrlRegistered(steamid)
+      if (!canProceed) return
       const gameid = this.battle?._id ?? this.battle?.gameid ?? this.battle?.gameId
       if (gameid == null) {
         this.$toaster?.error?.('Invalid game.')
@@ -489,7 +530,11 @@ export default {
   },
   async mounted() {
     this.calculateMinMaxNeed()
-    await this.fetchInventory()
+    const steamid = getSteamId()
+    const canLoadInventory = await this.verifyTradeUrlBeforeInventory(steamid)
+    if (canLoadInventory) {
+      await this.fetchInventory()
+    }
   },
 
   computed: {

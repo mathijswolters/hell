@@ -160,7 +160,7 @@ import Target_icon from '../icons/Target_icon.vue'
 import { mapActions } from 'vuex'
 import { openModal } from '@/modalStore'
 import UserImage from '../UserImage.vue'
-import { normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
+import { getTradeURLStatus, normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
 import { getSteamId, isLoggedIn } from '@/auth/session'
 import HEAVEN_COIN from '@/assets/img/coins/heaven.png'
 import HELL_COIN from '@/assets/img/coins/hell.png'
@@ -326,10 +326,28 @@ export default {
     openModal(name, props) {
       openModal(name, props)
     },
-    joinCoinflipOrLogin() {
+    async joinCoinflipOrLogin() {
       if (!isLoggedIn()) {
         const path = this.$route?.fullPath || '/coinflip'
         openModal('login', { redirectTo: path.startsWith('/') ? path : '/coinflip' })
+        return
+      }
+      const steamid = getSteamId()
+      if (!steamid) {
+        const path = this.$route?.fullPath || '/coinflip'
+        openModal('login', { redirectTo: path.startsWith('/') ? path : '/coinflip' })
+        return
+      }
+      try {
+        const status = await getTradeURLStatus({ steamid })
+        if (!status.isRegistered) {
+          openModal('trade url required', {
+            onSaved: () => this.joinCoinflipOrLogin()
+          })
+          return
+        }
+      } catch (error) {
+        this.$toaster?.error?.(error?.message || 'Could not validate Steam trade URL.')
         return
       }
       openModal('join coinflip', { battle: this.battle, secondsLeft: this.secondsLeft })

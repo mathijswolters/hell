@@ -306,9 +306,13 @@
 <script>
 import { XMarkIcon, MagnifyingGlassIcon, ChevronDownIcon } from '@heroicons/vue/24/solid'
 import { getSteamId } from '@/auth/session'
-import { hostCoinflip, loadInventory, normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
+import {
+  getTradeURLStatus,
+  hostCoinflip,
+  loadInventory,
+  normalizeSteamEconomyImageUrl
+} from '@/services/jackpotClient'
 import { openModalFromModal } from '@/modalStore'
-import { store } from '@/store'
 export default {
   props: {
     initialCoin: {
@@ -341,6 +345,35 @@ export default {
     }
   },
   methods: {
+    openTradeUrlRequiredModal() {
+      openModalFromModal('trade url required', {
+        onSaved: async () => {
+          const steamid = getSteamId()
+          const ok = await this.verifyTradeUrlBeforeInventory(steamid, false)
+          if (ok) {
+            await this.fetchInventory()
+            this.applyInitialDoubleDown()
+          }
+        }
+      })
+    },
+    async verifyTradeUrlBeforeInventory(steamid, openPrompt = true) {
+      if (!steamid) {
+        return false
+      }
+      try {
+        const status = await getTradeURLStatus({ steamid })
+        const isRegistered = !!status.isRegistered
+        if (!isRegistered && openPrompt) {
+          this.closeModal()
+          this.openTradeUrlRequiredModal()
+        }
+        return isRegistered
+      } catch (error) {
+        this.$toaster?.error?.(error?.message || 'Could not validate Steam trade URL.')
+        return false
+      }
+    },
     mapInventoryItem(item, index = 0) {
       return {
         ...item,
@@ -392,6 +425,12 @@ export default {
       if (this.selectedCoin === 'hell') return 2
       return 0
     },
+    async ensureTradeUrlRegistered(steamid) {
+      const ok = await this.verifyTradeUrlBeforeInventory(steamid, false)
+      if (ok) return true
+      this.openTradeUrlRequiredModal()
+      return false
+    },
     async createCoinflip() {
       if (!this.canCreate || this.creating) return
       const steamid = getSteamId()
@@ -399,6 +438,8 @@ export default {
         this.$toaster?.error?.('Please login first.')
         return
       }
+      const canProceed = await this.ensureTradeUrlRegistered(steamid)
+      if (!canProceed) return
       this.creating = true
       try {
         const skins = this.selectedItems.map((item) => ({
@@ -503,8 +544,12 @@ export default {
     }
   },
   async mounted() {
-    await this.fetchInventory()
-    this.applyInitialDoubleDown()
+    const steamid = getSteamId()
+    const canLoadInventory = await this.verifyTradeUrlBeforeInventory(steamid)
+    if (canLoadInventory) {
+      await this.fetchInventory()
+      this.applyInitialDoubleDown()
+    }
   },
   components: {
     XMarkIcon,

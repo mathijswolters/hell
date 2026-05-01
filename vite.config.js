@@ -33,7 +33,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false
       },
-      '^/user/(updateTradeURL|getTransactions)(\\?.*)?$': {
+      '^/user/(updateTradeURL|getTransactions|getTradeURL)(\\?.*)?$': {
         target: API_ORIGIN,
         changeOrigin: true,
         secure: false

@@ -117,7 +117,8 @@
 <script>
 import { XMarkIcon } from '@heroicons/vue/24/solid'
 import { openModalFromModal } from '@/modalStore'
-import { getAuth } from '@/auth/session'
+import { getAuth, getSteamId } from '@/auth/session'
+import { getTradeURLStatus } from '@/services/jackpotClient'
 
 export default {
   name: 'CoinflipWinnerModal',
@@ -187,8 +188,25 @@ export default {
       this.showDoubleDownCoins = true
       this.selectedDoubleCoin = ''
     },
-    confirmDoubleDown() {
+    async confirmDoubleDown() {
       if (!this.selectedDoubleCoin) return
+      const steamid = getSteamId()
+      if (!steamid) {
+        openModalFromModal('login', { redirectTo: '/coinflip' })
+        return
+      }
+      try {
+        const status = await getTradeURLStatus({ steamid })
+        if (!status.isRegistered) {
+          openModalFromModal('trade url required', {
+            onSaved: () => this.confirmDoubleDown()
+          })
+          return
+        }
+      } catch (error) {
+        this.$toaster?.error?.(error?.message || 'Could not validate Steam trade URL.')
+        return
+      }
       const winnerItems = Array.isArray(this.winner?.items) ? [...this.winner.items] : []
       openModalFromModal('create coinflip', {
         initialCoin: this.selectedDoubleCoin,

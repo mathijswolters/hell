@@ -77,6 +77,7 @@ import SteamOfferModal from './modals/SteamOfferModal.vue'
 import JackpotWinnerChoiceModal from './jackpot/JackpotWinnerChoiceModal.vue'
 import Weekly_cases from './modals/free_coins/Weekly_cases.vue'
 import CoinflipWinnerModal from './coinflip/WinnerModal.vue'
+import TradeUrlRequiredModal from './modals/TradeUrlRequiredModal.vue'
 
 export default {
   setup() {
@@ -178,6 +179,10 @@ export default {
         'hall of fame': { component: HOF },
         login: { component: LoginModal, props: { redirectTo: data.redirectTo ?? '/' } },
         'steam offer': { component: SteamOfferModal, props: { offerUrl: data.offerUrl ?? '' } },
+        'trade url required': {
+          component: TradeUrlRequiredModal,
+          props: { onSaved: typeof data.onSaved === 'function' ? data.onSaved : null }
+        },
         'coinflip winner': {
           component: CoinflipWinnerModal,
           props: {

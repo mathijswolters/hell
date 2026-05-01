@@ -394,9 +394,9 @@ import { XMarkIcon } from '@heroicons/vue/24/solid'
 import { CircleProgressBar } from 'circle-progress.vue'
 import ConfettiGenerator from 'confetti-js'
 import { mapActions } from 'vuex'
-import { authVersion, isLoggedIn } from '@/auth/session'
+import { authVersion, getSteamId, isLoggedIn } from '@/auth/session'
 import { openModalFromModal } from '@/modalStore'
-import { normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
+import { getTradeURLStatus, normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
 import HEAVEN_COIN from '@/assets/img/coins/heaven.png'
 import HELL_COIN from '@/assets/img/coins/hell.png'
 import B2B_SPRITE from '@/assets/img/B2B sprite_q.png'
@@ -549,12 +549,30 @@ export default {
       const path = this.$route?.fullPath || '/coinflip'
       openModalFromModal('login', { redirectTo: path.startsWith('/') ? path : '/coinflip' })
     },
-    openJoinCoinflipFromGameModal() {
+    async ensureTradeUrlRegistered(steamid) {
+      try {
+        const status = await getTradeURLStatus({ steamid })
+        if (status.isRegistered) return true
+      } catch (error) {
+        this.$toaster?.error?.(error?.message || 'Could not validate Steam trade URL.')
+        return false
+      }
+      openModalFromModal('trade url required')
+      return false
+    },
+    async openJoinCoinflipFromGameModal() {
       if (this.isDepositAcceptPhase) return
       if (!isLoggedIn()) {
         this.openLoginModal()
         return
       }
+      const steamid = getSteamId()
+      if (!steamid) {
+        this.openLoginModal()
+        return
+      }
+      const canProceed = await this.ensureTradeUrlRegistered(steamid)
+      if (!canProceed) return
       this.openModal('join coinflip', { battle: this.battle, secondsLeft: this.localSecondsLeft })
     },
     join() {

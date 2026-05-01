@@ -347,6 +347,28 @@ export async function updateTradeURL({ steamid, trade_url }) {
   return data
 }
 
+/**
+ * Check whether the current user has a registered Steam trade URL.
+ * Endpoint: GET `/user/getTradeURL`
+ * Response shape:
+ * `{ error: boolean, error_message: string|null, trade_url: string|null }`
+ */
+export async function getTradeURLStatus({ steamid } = {}) {
+  const query =
+    steamid != null && String(steamid).trim() !== ''
+      ? `?steamid=${encodeURIComponent(String(steamid).trim())}`
+      : ''
+  const data = await request(`/user/getTradeURL${query}`, { method: 'GET' })
+  const tradeUrl = typeof data?.trade_url === 'string' ? data.trade_url.trim() : ''
+  const isRegistered = data?.error !== true && tradeUrl.length > 0
+  return {
+    isRegistered,
+    tradeUrl,
+    error: data?.error === true,
+    errorMessage: data?.error_message ?? null
+  }
+}
+
 /** Single shared Socket.IO manager for the SPA (nav + jackpot views). */
 let sharedJackpotSocket = null
 
