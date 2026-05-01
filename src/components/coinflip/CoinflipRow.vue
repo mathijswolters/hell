@@ -19,7 +19,7 @@
         class="order-1 col-span-3 sm:col-span-2 lg:col-span-3 xl:col-span-2 flex items-center justify-center relative"
       >
         <div v-if="battle.players.length == 1" class="flex items-center gap-4">
-          <img :src="`/src/assets/img/coins/${coinSideValue(battle.players[0].coin)}.png`" class="w-[2rem]" />
+          <img :src="coinImageSrc(battle.players[0].coin)" class="w-[2rem]" />
           <UserImage :user="battle.players[0]" />
         </div>
         <div v-else class="flex items-center gap-4 sm:gap-6">
@@ -32,7 +32,7 @@
             <div
               class="rounded-full -right-[0.6rem] w-[1.3rem] absolute z-10"
             >
-              <img :src="`/src/assets/img/coins/${coinSideValue(battle.players[0].coin)}.png`" class="w-full h-full" />
+              <img :src="coinImageSrc(battle.players[0].coin)" class="w-full h-full" />
             </div>
 
             <UserImage :user="battle.players[0]" />
@@ -47,7 +47,7 @@
             <div
               class="rounded-full -left-[0.6rem] w-[1.3rem] absolute z-10"
             >
-              <img :src="`/src/assets/img/coins/${coinSideValue(battle.players[1].coin)}.png`" class="w-full h-full" />
+              <img :src="coinImageSrc(battle.players[1].coin)" class="w-full h-full" />
             </div>
             <UserImage :user="battle.players[1]" />
           </div>
@@ -127,7 +127,7 @@
         </button>
         <div v-if="showRowWinner" class="flex items-center gap-2 shrink-0">
           <img
-            :src="`/src/assets/img/coins/${coinSideValue(battle.coin)}.png`"
+            :src="coinImageSrc(battle.coin)"
             class="w-[1.5rem]"
             alt=""
           />
@@ -162,6 +162,8 @@ import { openModal } from '@/modalStore'
 import UserImage from '../UserImage.vue'
 import { normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
 import { getSteamId, isLoggedIn } from '@/auth/session'
+import HEAVEN_COIN from '@/assets/img/coins/heaven.png'
+import HELL_COIN from '@/assets/img/coins/hell.png'
 
 const COINFLIP_DEPOSIT_COUNTDOWN_SEC = 25
 const COINFLIP_PRE_FLIP_COUNTDOWN_SEC = 15
@@ -291,6 +293,9 @@ export default {
         .toLowerCase()
       if (normalized === 'hell') return 'hell'
       return 'heaven'
+    },
+    coinImageSrc(coin) {
+      return this.coinSideValue(coin) === 'hell' ? HELL_COIN : HEAVEN_COIN
     },
     playerIsWinner(player) {
       if (!this.isEnded || !this.hasFlipOutcome || !player) return false

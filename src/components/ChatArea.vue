@@ -125,7 +125,7 @@
             >
               <span class="text-xs font-bold">BIG WIN ON</span>
               <img
-                :src="message.game == 'jackpot' ? '/src/assets/img/coins/jackpot.png' : '/src/assets/img/coins/coinflip.png'"
+                :src="message.game == 'jackpot' ? '/img/coins/jackpot.png' : '/img/coins/coinflip.png'"
                 class="w-3 h-3 rounded-full"
               />
               <span class="text-xs font-bold">{{ message.game }}</span>

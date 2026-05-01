@@ -42,7 +42,7 @@
                     <div class="relative flex items-center transition-opacity duration-200">
                       <div class="rounded-full -right-2 w-4 absolute">
                         <img
-                          :src="`/img/coins/${previous_battle.players[0].coin}.png`"
+                          :src="coinImageSrc(previous_battle.players[0].coin)"
                           class="w-full h-full"
                         />
                       </div>
@@ -61,7 +61,7 @@
                     >
                       <div class="border-[2px] border-[#740c0a] rounded-full -left-2 w-4 absolute">
                         <img
-                          :src="`/img/coins/${previous_battle.players[1].coin}.png`"
+                          :src="coinImageSrc(previous_battle.players[1].coin)"
                           class="w-full h-full"
                         />
                       </div>
@@ -161,7 +161,7 @@
                 class="w-[76.85px] h-[76.85px] sm:w-[9.25rem] sm:h-[9.25rem] rounded-[4px] object-cover border-[0.5px] border-solid border-white"
               />
               <img
-                :src="`/src/assets/img/coins/${coinSideValue(player.coin)}.png`"
+                :src="coinImageSrc(player.coin)"
                 class="absolute sm:max-w-[3.5rem] w-9 sm:w-[3.5rem] rounded-full -bottom-4 sm:-bottom-5 z-10"
                 :class="{
                   '-right-4 sm:-right-6': index == 1,
@@ -187,7 +187,7 @@
                 class="w-[76.85px] h-[76.85px] sm:w-[9.25rem] sm:h-[9.25rem] rounded-[4px] object-cover border-[0.5px] border-solid border-white"
               />
               <img
-                :src="`/src/assets/img/coins/${coinSideValue(joiningPreviewPlayer.coin)}.png`"
+                :src="coinImageSrc(joiningPreviewPlayer.coin)"
                 class="absolute sm:max-w-[3.5rem] w-9 sm:w-[3.5rem] rounded-full -bottom-4 sm:-bottom-5 z-10 -right-4 sm:-right-6"
               />
             </div>
@@ -396,6 +396,8 @@ import { mapActions } from 'vuex'
 import { authVersion, isLoggedIn } from '@/auth/session'
 import { openModalFromModal } from '@/modalStore'
 import { normalizeSteamEconomyImageUrl } from '@/services/jackpotClient'
+import HEAVEN_COIN from '@/assets/img/coins/heaven.png'
+import HELL_COIN from '@/assets/img/coins/hell.png'
 import B2B_SPRITE from '@/assets/img/B2B sprite_q.png'
 import B2B2_SPRITE from '@/assets/img/B2B2 sprite_q.png'
 import R2B_SPRITE from '@/assets/img/R2B sprite_q.png'
@@ -481,6 +483,9 @@ export default {
         .toLowerCase()
       if (normalized === 'hell') return 'hell'
       return 'heaven'
+    },
+    coinImageSrc(coin) {
+      return this.coinSideValue(coin) === 'hell' ? HELL_COIN : HEAVEN_COIN
     },
     ticketNumberShorten(str, start = 5, end = 5) {
       if (str.length <= start + end) return str;
