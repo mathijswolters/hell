@@ -214,7 +214,7 @@
                 localSecondsLeft
               }}</span></CircleProgressBar
             >
-            <div v-else class="h-[100px] sm:h-[160px] w-[100px] sm:w-[160px] relative z-20">
+            <div v-else class="h-[120px] sm:h-[190px] w-[120px] sm:w-[190px] relative z-20">
               <div id="coin_container" class="z-10">
                 <div
                   id="coin"
@@ -241,7 +241,7 @@
               </div>
             </div>
             <span
-              class="hidden sm:flex flex-col items-center w-full left-0 right-0 whitespace-nowrap top-[calc(100%+3rem)] sm:top-[calc(100%+1rem)] absolute"
+              class="hidden sm:flex flex-col items-center w-full left-0 right-0 whitespace-nowrap top-[calc(100%+3rem)] sm:top-[calc(85%+1rem)] absolute"
             >
               <transition name="fade-slide">
                 <span
@@ -408,7 +408,7 @@ import R2R_SPRITE from '@/assets/img/R2R sprite_q.png'
 import R2R2_SPRITE from '@/assets/img/R2R2 sprite_q.png'
 
 /** Deposit trade acceptance window after `coinflip:joining`. */
-const COINFLIP_DEPOSIT_COUNTDOWN_SEC = 25
+const COINFLIP_DEPOSIT_COUNTDOWN_SEC = 90
 /** Countdown after both players are in until the flip (green ring). */
 const COINFLIP_PRE_FLIP_COUNTDOWN_SEC = 15
 /** Must match `.coin-sprite.animate` duration in this component’s styles. */
@@ -902,9 +902,9 @@ export default {
 }
 #coin {
   position: relative;
-  width: 160px;
-  height: 160px;
-  --coin-size: 160px;
+  width: 190px;
+  height: 190px;
+  --coin-size: 190px;
   /* sprite sheets are 256x(256*121), so 121 square frames vertically stacked */
   --sprite-frames: 121;
   background-color: transparent;
@@ -952,9 +952,9 @@ export default {
 
 @media (max-width: 640px) {
   #coin {
-    width: 100px;
-    height: 100px;
-    --coin-size: 100px;
+    width: 120px;
+    height: 120px;
+    --coin-size: 120px;
   }
 }
 
