@@ -213,6 +213,13 @@ function battleIdMatches(battle, battleId) {
   return false
 }
 
+/** While a coinflip is `joining`, bump that row’s `server_time` once per second until joined/cancelled. */
+const coinflipJoiningServerTimeIntervals = new Map()
+
+function coinflipJoiningServerTimeKey(battleId) {
+  return String(battleId ?? '')
+}
+
 /** `Object.assign` copies `undefined` and wipes existing keys — drop those entries before merge. */
 function omitUndefinedEntries(obj) {
   if (!obj || typeof obj !== 'object') return {}
@@ -325,9 +332,54 @@ export const store = createStore({
       if (Array.isArray(battle.players) && battle.players.length > 0) {
         Object.assign(battle, hostPartFieldsFromPlayers(battle.players, battle))
       }
+    },
+
+    incrementCoinflipGameServerTime(state, battleId) {
+      const battle = state.battles.find((b) => battleIdMatches(b, battleId))
+      if (!battle) return
+      const cur = Number(battle.server_time)
+      if (!Number.isFinite(cur)) return
+      battle.server_time = cur + 1
     }
   },
   actions: {
+    beginCoinflipJoiningServerTimeTick({ commit, state }, battleId) {
+      console.log('-----------beginCoinflipJoiningServerTimeTick-----------', battleId)
+      const key = coinflipJoiningServerTimeKey(battleId)
+      console.log('-----------key-----------', key)
+      if (!key || coinflipJoiningServerTimeIntervals.has(key)) return
+      const intervalId = setInterval(() => {
+        console.log('-----------intervalId-----------', intervalId)
+        const battle = state.battles.find((b) => battleIdMatches(b, battleId))
+        if (!battle) {
+          clearInterval(intervalId)
+          coinflipJoiningServerTimeIntervals.delete(key)
+          return
+        }
+        const isJoining =
+          !!battle.joining || normalizeCoinflipLifecycleState(battle.state) === 'joining'
+        if (!isJoining) {
+          clearInterval(intervalId)
+          coinflipJoiningServerTimeIntervals.delete(key)
+          return
+        }
+        commit('incrementCoinflipGameServerTime', battleId)
+      }, 1000)
+      coinflipJoiningServerTimeIntervals.set(key, intervalId)
+    },
+    endCoinflipJoiningServerTimeTick(context, battleId) {
+      const key = coinflipJoiningServerTimeKey(battleId)
+      const intervalId = coinflipJoiningServerTimeIntervals.get(key)
+      if (intervalId == null) return
+      clearInterval(intervalId)
+      coinflipJoiningServerTimeIntervals.delete(key)
+    },
+    clearAllCoinflipJoiningServerTimeTicks() {
+      for (const intervalId of coinflipJoiningServerTimeIntervals.values()) {
+        clearInterval(intervalId)
+      }
+      coinflipJoiningServerTimeIntervals.clear()
+    },
     // Coinflip battle actions
     updateBattleState({ commit }, { battleId, newState }) {
       commit('updateBattleState', { battleId, newState })

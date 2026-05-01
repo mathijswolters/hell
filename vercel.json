@@ -17,7 +17,7 @@
       "destination": "http://116.202.242.165:2052/stats/$1"
     },
     {
-      "source": "/user/(updateTradeURL|getTransactions)",
+      "source": "/user/(updateTradeURL|getTransactions|getTradeURL)",
       "destination": "http://116.202.242.165:2052/user/$1"
     },
     {

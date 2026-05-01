@@ -716,10 +716,17 @@ export default {
           const gid = payload?.gameid ?? payload?.gameId
           if (gid == null) return
           const battle = this.battles.find((b) => String(this.getGameId(b)) === String(gid))
-          console.log('here is battle in joining: ', battle)
+          const joiningStarted = payload?.server_time;
           const patch = {
             joining: true,
             state: payload?.state ?? 'joining',
+            ...(joiningStarted != null
+              ? {
+                  joining_started_at: joiningStarted,
+                  joining_end_at: joiningStarted + 90,
+                  server_time: joiningStarted
+                }
+              : {})
           }
           if (payload.part_data || payload.part != null) {
             patch.part = payload.part
@@ -750,8 +757,11 @@ export default {
           }
 
           this.$store.commit('patchBattleById', { battleId: gid, patch })
+          this.$store.dispatch('beginCoinflipJoiningServerTimeTick', gid)
         },
         joined: (payload) => {
+          const gidJoined = payload?.gameid ?? payload?.gameId
+          if (gidJoined != null) this.$store.dispatch('endCoinflipJoiningServerTimeTick', gidJoined)
           const gid = payload?.gameid ?? payload?.gameId
           if (gid == null) return
           const battle = this.battles.find((b) => String(this.getGameId(b)) === String(gid))
@@ -790,6 +800,7 @@ export default {
         cancelJoining: (payload) => {
           const gid = payload?.gameid ?? payload?.gameId
           if (gid == null) return
+          this.$store.dispatch('endCoinflipJoiningServerTimeTick', gid)
           this.$store.commit('patchBattleById', {
             battleId: gid,
             patch: { joining: false, joinPartData: null, state: payload?.state ?? 'open', joinOfferUrl: null }
@@ -852,6 +863,7 @@ export default {
       if (this.socket.connected) subscribe()
     },
     disconnectCoinflipSocket() {
+      this.$store.dispatch('clearAllCoinflipJoiningServerTimeTicks')
       if (!this.socket) return
       this.socket.emit('coinflip:unsubscribe')
       if (this.coinflipSocketHandlers) {

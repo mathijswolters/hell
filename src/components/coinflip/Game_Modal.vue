@@ -109,7 +109,7 @@
                   <div class="flex items-center justify-end w-full h-full">
                     <button
                       @click="
-                        openModal('coinflip game', { battle: battle, secondsLeft: secondsLeft })
+                        openModal('coinflip game', { battle: battle, secondsLeft: circleSecondsLeft })
                       "
                       class="flex items-center px-3 h-[28px] bg-[#FF3435] font-bold font-Rubik text-white text-sm whitespace-nowrap"
                     >
@@ -204,7 +204,7 @@
           >
             <CircleProgressBar
               v-if="showCountdownRing"
-              :value="localSecondsLeft"
+              :value="circleSecondsLeft"
               :max="countdownMax"
               :size="screenWidth < 640 ? '90' : '148'"
               :colorUnfilled="isGreenPhase ? '#04AB53' : '#FF3435'"
@@ -212,7 +212,7 @@
               :startAngle="0"
               :strokeWidth="screenWidth < 640 ? '15' : '15'"
               ><span class="font-extrabold font-Rubik text-white text-xl sm:text-[32px]">{{
-                localSecondsLeft
+                circleSecondsLeft
               }}</span></CircleProgressBar
             >
             <div v-else class="h-[120px] sm:h-[190px] w-[120px] sm:w-[190px] relative z-20">
@@ -447,8 +447,8 @@ export default {
     }
   },
   watch: {
-    localSecondsLeft(newState) {
-      if (this.isDepositAcceptPhase && newState == 0) {
+    circleSecondsLeft(newState) {
+      if (this.isDepositAcceptPhase && newState === 0) {
         setTimeout(() => {
           if (this.isFlipping == false) {
             // this.removeBattle(this.battle._id)
@@ -460,7 +460,7 @@ export default {
       if (newState === 'joined' || newState === 'ending' || newState === 'in_progress') {
         this.startCountdown(COINFLIP_PRE_FLIP_COUNTDOWN_SEC)
       } else if (newState === 'joining') {
-        this.startCountdown(COINFLIP_DEPOSIT_COUNTDOWN_SEC)
+        this.clearCountdown()
       } else if (newState === 'open' || newState === 'created') {
         this.clearCountdown()
       } else if (newState === 'ended' || newState === 'finished') {
@@ -573,7 +573,7 @@ export default {
       }
       const canProceed = await this.ensureTradeUrlRegistered(steamid)
       if (!canProceed) return
-      this.openModal('join coinflip', { battle: this.battle, secondsLeft: this.localSecondsLeft })
+      this.openModal('join coinflip', { battle: this.battle, secondsLeft: this.circleSecondsLeft })
     },
     join() {
       this.$emit('joinPlayer')
@@ -604,7 +604,14 @@ export default {
       return { value, chance }
     },
     isPassedTime() {
-      if (!this.battle.server_time || this.battle.server_time > ( this.battle.hosted + 30 )) {
+      const b = this.battle
+      if (this.isDepositAcceptPhase) {
+        const end = this.joiningEndAt
+        const st = Number(b?.server_time)
+        if (Number.isFinite(end) && Number.isFinite(st)) return st >= end
+        return false
+      }
+      if (!b?.server_time || b.server_time > b.hosted + 30) {
         return true
       }
       return false
@@ -744,7 +751,7 @@ export default {
     },
     showCountdownRing() {
       return (
-        (this.isDepositAcceptPhase && this.localSecondsLeft > 0) ||
+        (this.isDepositAcceptPhase && this.circleSecondsLeft > 0) ||
         (this.isGreenPhase && this.localSecondsLeft > 0)
       )
     },
@@ -754,8 +761,43 @@ export default {
         this.battle?.ticket != null || this.battle?.hash != null || this.battle?.roll != null
       return hasCoin && hasResultMeta
     },
+    joiningEndAt() {
+      const b = this.battle
+      const e = Number(b?.joining_end_at)
+      if (Number.isFinite(e)) return e
+      const st = Number(b?.server_time)
+      if (Number.isFinite(st)) return st + COINFLIP_DEPOSIT_COUNTDOWN_SEC
+      return NaN
+    },
+    joiningStartAt() {
+      const b = this.battle
+      const s = Number(b?.joining_started_at)
+      if (Number.isFinite(s)) return s
+      const end = this.joiningEndAt
+      if (Number.isFinite(end)) return end - COINFLIP_DEPOSIT_COUNTDOWN_SEC
+      return NaN
+    },
+    /** Deposit: `joining_end_at - server_time`. Green: interval-driven `localSecondsLeft`. */
+    circleSecondsLeft() {
+      if (this.isDepositAcceptPhase) {
+        const st = Number(this.battle?.server_time)
+        const end = this.joiningEndAt
+        if (Number.isFinite(st) && Number.isFinite(end)) {
+          return Math.max(0, Math.floor(end - st))
+        }
+        return 0
+      }
+      return this.localSecondsLeft
+    },
     countdownMax() {
-      if (this.isDepositAcceptPhase) return COINFLIP_DEPOSIT_COUNTDOWN_SEC
+      if (this.isDepositAcceptPhase) {
+        const start = this.joiningStartAt
+        const end = this.joiningEndAt
+        if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+          return Math.max(1, Math.floor(end - start))
+        }
+        return COINFLIP_DEPOSIT_COUNTDOWN_SEC
+      }
       if (this.isGreenPhase) return COINFLIP_PRE_FLIP_COUNTDOWN_SEC
       return COINFLIP_DEPOSIT_COUNTDOWN_SEC
     },
@@ -877,7 +919,7 @@ export default {
     this.hasAnimatedFlipResult = this.isEnded && this.hasFlipResultData
     this.pickRandomCoinSprite(this.coinSideValue(this.battle?.coin))
     if (this.isDepositAcceptPhase) {
-      this.startCountdown(COINFLIP_DEPOSIT_COUNTDOWN_SEC)
+      this.clearCountdown()
     } else if (this.isGreenPhase && !this.isEnded) {
       this.startCountdown(COINFLIP_PRE_FLIP_COUNTDOWN_SEC)
     } else {
