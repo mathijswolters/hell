@@ -5,7 +5,7 @@
       "destination": "http://116.202.242.165:2052/jackpot/$1"
     },
     {
-      "source": "/coinflip/(host|join|getCoinflips)",
+      "source": "/coinflip/(host|join|getCoinflips|wagerWinnings|claimWinnings)",
       "destination": "http://116.202.242.165:2052/coinflip/$1"
     },
     {

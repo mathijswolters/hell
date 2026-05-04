@@ -414,6 +414,8 @@ const COINFLIP_DEPOSIT_COUNTDOWN_SEC = 90
 const COINFLIP_PRE_FLIP_COUNTDOWN_SEC = 15
 /** Must match `.coin-sprite.animate` duration in this component’s styles. */
 const COINFLIP_MODAL_FLIP_ANIM_MS = 5000
+/** Pause after result is revealed before opening the winner modal (signed-in winner only). */
+const COINFLIP_WINNER_MODAL_DELAY_MS = 2500
 
 export default {
   name: 'coinFlip_Battle',
@@ -443,7 +445,8 @@ export default {
       confetti: null,
       localSecondsLeft: this.secondsLeft,
       countdownInterval: null,
-      screenWidth: window.innerWidth
+      screenWidth: window.innerWidth,
+      winnerModalDelayTimer: null
     }
   },
   watch: {
@@ -616,8 +619,14 @@ export default {
       }
       return false
     },
+    clearWinnerModalDelayTimer() {
+      if (this.winnerModalDelayTimer == null) return
+      clearTimeout(this.winnerModalDelayTimer)
+      this.winnerModalDelayTimer = null
+    },
     flipCoin() {
       if (this.isFlipping) return
+      this.clearWinnerModalDelayTimer()
 
       // Hide proof/winner info until the animation's final timeout completes.
       this.hasAnimatedFlipResult = false
@@ -673,7 +682,34 @@ export default {
         if (flipKey) {
           this.$store.commit('coinflipModalFlipAnimatingClear', flipKey)
         }
+        this.clearWinnerModalDelayTimer()
+        this.winnerModalDelayTimer = setTimeout(() => {
+          this.winnerModalDelayTimer = null
+          this.maybeOpenCoinflipWinnerModal(winIndex)
+        }, COINFLIP_WINNER_MODAL_DELAY_MS)
       }, COINFLIP_MODAL_FLIP_ANIM_MS)
+    },
+    /** True when `player` is the signed-in user (Steam id or same string `_id`). */
+    playerMatchesSignedInSteam(player) {
+      const steamid = getSteamId()
+      if (!steamid || !player) return false
+      const s = String(steamid).trim()
+      const pSteam = player.steamid != null ? String(player.steamid).trim() : ''
+      if (pSteam && pSteam === s) return true
+      const pId = player._id != null ? String(player._id).trim() : ''
+      return Boolean(pId && pId === s)
+    },
+    maybeOpenCoinflipWinnerModal(winIndex) {
+      if (!isLoggedIn()) return
+      const players = Array.isArray(this.battle?.players) ? this.battle.players : []
+      const winnerPlayer = players[winIndex]
+      if (!winnerPlayer || !this.playerMatchesSignedInSteam(winnerPlayer)) return
+      const wonAmount = Number(this.battle?.total_value ?? this.battle?.total ?? 0)
+      openModalFromModal('coinflip winner', {
+        winner: winnerPlayer,
+        battle: this.battle,
+        wonAmount
+      })
     },
     winnerModal() {
       this.$emit('winnerModal')
@@ -928,6 +964,7 @@ export default {
     window.addEventListener('resize', this.updateScreenWidth)
   },
   beforeUnmount() {
+    this.clearWinnerModalDelayTimer()
     this.clearCountdown()
     if (this.isFlipping) {
       const k = this.flipBattleIdKey

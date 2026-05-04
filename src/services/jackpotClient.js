@@ -547,6 +547,36 @@ export async function joinCoinflip({ steamid, skins, gameid }) {
 }
 
 /**
+ * Re-enter coinflip winnings into a new coinflip (double-down).
+ * POST `/coinflip/wagerWinnings`
+ */
+export async function wagerCoinflipWinnings({ steamid, gameid }) {
+  const data = await request('/coinflip/wagerWinnings', {
+    method: 'POST',
+    body: JSON.stringify({ steamid, gameid })
+  })
+  if (data?.error === true) {
+    throw new Error(data?.error_message || 'Could not wager coinflip winnings')
+  }
+  return data
+}
+
+/**
+ * Send coinflip winnings to Steam inventory (claim).
+ * POST `/coinflip/claimWinnings`
+ */
+export async function claimCoinflipWinnings({ steamid, gameid }) {
+  const data = await request('/coinflip/claimWinnings', {
+    method: 'POST',
+    body: JSON.stringify({ steamid, gameid })
+  })
+  if (data?.error === true) {
+    throw new Error(data?.error_message || 'Could not claim coinflip winnings')
+  }
+  return data
+}
+
+/**
  * Winner claims jackpot payout directly.
  * POST `/jackpot/claimWinnings`
  */

@@ -18,7 +18,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false
       },
-      '^/coinflip/(host|join|getCoinflips)(\\?.*)?$': {
+      '^/coinflip/(host|join|getCoinflips|wagerWinnings|claimWinnings)(\\?.*)?$': {
         target: API_ORIGIN,
         changeOrigin: true,
         secure: false
